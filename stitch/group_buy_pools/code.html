@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Group Buy &amp; Shared Rides | CommunityCollab</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary": "#ffffff",
+              "surface-container-low": "#fff2e2",
+              "surface-bright": "#fff8f3",
+              "primary-fixed-dim": "#ffb59f",
+              "on-tertiary-container": "#4f2000",
+              "on-surface-variant": "#3c4948",
+              "secondary": "#006a67",
+              "primary-fixed": "#ffdbd1",
+              "on-secondary-container": "#00716d",
+              "error-container": "#ffdad6",
+              "primary-container": "#ff602e",
+              "on-secondary-fixed": "#00201f",
+              "error": "#ba1a1a",
+              "primary": "#af3000",
+              "surface": "#fff8f3",
+              "on-surface": "#271902",
+              "on-primary-container": "#5a1400",
+              "on-secondary": "#ffffff",
+              "secondary-fixed": "#7bf6f0",
+              "on-error": "#ffffff",
+              "secondary-fixed-dim": "#5bd9d3",
+              "inverse-primary": "#ffb59f",
+              "inverse-surface": "#3e2e12",
+              "surface-container-high": "#ffe4bf",
+              "tertiary": "#904c21",
+              "on-primary-fixed": "#3a0a00",
+              "background": "#fff8f3",
+              "surface-container-highest": "#fadfb7",
+              "surface-tint": "#af3000",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#00504d",
+              "on-tertiary-fixed": "#331200",
+              "on-primary-fixed-variant": "#862300",
+              "on-tertiary-fixed-variant": "#73350b",
+              "outline": "#6c7a78",
+              "tertiary-container": "#d28151",
+              "secondary-container": "#7bf6f0",
+              "inverse-on-surface": "#ffeed9",
+              "surface-dim": "#f1d6af",
+              "surface-container": "#ffebd1",
+              "outline-variant": "#bcc9c8",
+              "tertiary-fixed-dim": "#ffb68e",
+              "surface-variant": "#fadfb7",
+              "on-background": "#271902",
+              "surface-container-lowest": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "tertiary-fixed": "#ffdbca"
+            },
+            fontFamily: {
+              "headline": ["Plus Jakarta Sans"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "3xl": "1.5rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-nav {
+        background: rgba(255, 248, 243, 0.8);
+        backdrop-filter: blur(12px);
+      }
+      body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #fff8f3;
+        color: #271902;
+      }
+    </style>
+</head>
+<body class="min-h-screen">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 glass-nav shadow-[0_20px_40px_rgba(39,25,2,0.06)] flex justify-between items-center px-6 py-3 w-full">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold text-[#af3000] tracking-tighter">CommunityCollab</span>
+<div class="hidden md:flex items-center bg-[#fff2e2] rounded-full px-4 py-1.5 gap-2 border border-transparent focus-within:border-[#af3000] transition-all">
+<span class="material-symbols-outlined text-[#3c4948]" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-64 placeholder-[#3c4948]" placeholder="Search requests..." type="text"/>
+</div>
+</div>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-[#3c4948] hover:text-[#af3000] transition-colors font-medium" href="#">Explore</a>
+<a class="text-[#af3000] font-bold border-b-4 border-[#af3000] py-1" href="#">My Requests</a>
+<div class="flex items-center gap-4 ml-4">
+<span class="material-symbols-outlined text-[#3c4948] hover:bg-[#ffebd1] p-2 rounded-full cursor-pointer transition-colors" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-[#3c4948] hover:bg-[#ffebd1] p-2 rounded-full cursor-pointer transition-colors" data-icon="chat">chat</span>
+<div class="relative">
+<img alt="User profile avatar with teal verified badge" class="w-9 h-9 rounded-full object-cover ring-2 ring-[#fff2e2]" data-alt="Close-up portrait of a friendly professional man with a neat beard in a sunlit office environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBilgTp6v9eWRvZ5YGXfK47qo1JWuwtzCwRXK0ebNi_J774TeKlMdGSpxUVlIWg-2i54yN2PQK3sFN1X_J-Gwkap9ExZWTmpIFEMnN4mfh0BeL6JlUvSIELvt1VdItuY28UKz50WBQjtsoP4Y9I_VpAm9LVHqvBDiCrPnShYGAH7gBAutb3zTptEJjqF4sZkpNk1mHmTcRsXDi_4-sBhm8s-eTYlNrfr3G2sINMLycOyNFH6Z9SjB4lva0MDqJ9jwyFu9Lh6SWrYFo"/>
+<div class="absolute -bottom-1 -right-1 bg-secondary rounded-full p-0.5 border-2 border-white">
+<span class="material-symbols-outlined text-[10px] text-white font-bold" data-icon="check" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<!-- Sidebar (Visible on Desktop) -->
+<aside class="hidden lg:flex flex-col gap-y-2 py-8 pr-4 h-screen w-64 fixed left-0 top-0 bg-[#fff8f3] z-40 mt-16 overflow-y-auto">
+<div class="px-6 mb-6">
+<h2 class="text-[#af3000] font-black uppercase tracking-widest text-xs">Kinetic Hearth</h2>
+<p class="text-[10px] text-[#3c4948] opacity-70">Collaborative Hub</p>
+</div>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:translate-x-1 transition-all hover:text-[#af3000]" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-medium text-sm">Home</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:translate-x-1 transition-all hover:text-[#af3000]" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-medium text-sm">Explore</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:translate-x-1 transition-all hover:text-[#af3000]" href="#">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="font-medium text-sm">My Events</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:translate-x-1 transition-all hover:text-[#af3000]" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-medium text-sm">Skill Exchange</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 bg-[#ffebd1] text-[#271902] rounded-r-full font-bold shadow-sm" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-medium text-sm">My Requests</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:translate-x-1 transition-all hover:text-[#af3000]" href="#">
+<span class="material-symbols-outlined" data-icon="forum">forum</span>
+<span class="font-medium text-sm">Messages</span>
+</a>
+</div>
+<div class="mt-auto px-4 pb-12">
+<button class="w-full py-3 px-4 bg-gradient-to-br from-[#af3000] to-[#ff602e] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                Create New Task
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-24 pb-12 px-6 max-w-7xl mx-auto">
+<!-- Hero Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+<div>
+<h1 class="text-4xl md:text-5xl font-extrabold text-[#271902] tracking-tighter mb-2">Group Buy &amp; <span class="text-[#af3000]">Shared Rides</span></h1>
+<p class="text-[#3c4948] font-medium max-w-xl">Join forces with neighbors to unlock bulk discounts or split travel costs. Community collaboration at its peak.</p>
+</div>
+<button class="bg-[#ff602e] hover:bg-[#af3000] text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-[0_10px_20px_rgba(255,96,46,0.2)] transition-all flex items-center gap-3 group">
+<span class="material-symbols-outlined group-hover:rotate-90 transition-transform" data-icon="add_circle">add_circle</span>
+                Create Request
+            </button>
+</div>
+<!-- Filter Tabs -->
+<div class="flex items-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
+<button class="bg-[#271902] text-white px-6 py-2.5 rounded-full font-bold whitespace-nowrap">All Requests</button>
+<button class="bg-white hover:bg-[#ffebd1] text-[#3c4948] px-6 py-2.5 rounded-full font-medium whitespace-nowrap transition-colors">Group Buys</button>
+<button class="bg-white hover:bg-[#ffebd1] text-[#3c4948] px-6 py-2.5 rounded-full font-medium whitespace-nowrap transition-colors">Carpool / Rides</button>
+<button class="bg-white hover:bg-[#ffebd1] text-[#3c4948] px-6 py-2.5 rounded-full font-medium whitespace-nowrap transition-colors">Custom Requests</button>
+</div>
+<!-- Bento Grid Content -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+<!-- Card 1: Carpool -->
+<div class="group relative bg-[#ffffff] rounded-3xl p-6 shadow-[0_4px_20px_rgba(39,25,2,0.03)] hover:shadow-[0_20px_40px_rgba(39,25,2,0.08)] transition-all flex flex-col overflow-hidden">
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary/5 rounded-bl-[100px] -mr-8 -mt-8 group-hover:scale-110 transition-transform"></div>
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-2xl bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="directions_car">directions_car</span>
+</div>
+<span class="bg-[#ffe4bf] text-[#af3000] text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">Morning Commute</span>
+</div>
+<h3 class="text-xl font-bold text-[#271902] mb-2 leading-tight">Shared Ride to Tech Hub North</h3>
+<p class="text-sm text-[#3c4948] mb-6 line-clamp-2">Looking for 2 people to share the morning commute. Electric vehicle, very comfortable. Leaving daily at 8:15 AM.</p>
+<div class="flex items-center gap-3 mb-6 p-3 bg-[#fff8f3] rounded-2xl border border-[#fff2e2]">
+<div class="relative">
+<img alt="Organizer Avatar" class="w-10 h-10 rounded-full object-cover" data-alt="Close-up of a smiling young professional man with short dark hair in a bright outdoor setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZGA4jg6wnkvDOHoSdR_xGBwP9wCkwg1us7Q6UptmS2gSM38d3VD7UpeNGvo3lGV38RDZEvm5wN90p6CHjNNY_TjnDYsMT56i8-_eec-HHR222Mt7ZnLWqfRccoR6F4ePC2MaBNIobB07MmnutDm92JEpgVOWEd4lxAx1lNqGRjn_KFq0fjSD8pldFzkZzFDuKdJii9stFa0XA6XPm-Rf9xzBb95r-k0MSMYiLCj80sTb4T57iESbvsmX73_2VLLg73Q3ChIZiJyM"/>
+<div class="absolute -bottom-1 -right-1 bg-secondary rounded-full p-0.5 border-2 border-white">
+<span class="material-symbols-outlined text-[8px] text-white font-bold" data-icon="verified" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div>
+<p class="text-xs font-bold text-[#271902]">Marcus Chen</p>
+<p class="text-[10px] text-secondary font-semibold">Gold Member</p>
+</div>
+<div class="ml-auto text-right">
+<p class="text-xs font-black text-[#af3000]">~₹150</p>
+<p class="text-[10px] text-[#3c4948]">per person</p>
+</div>
+</div>
+<div class="space-y-2 mb-8">
+<div class="flex justify-between text-[11px] font-bold text-[#3c4948]">
+<span>Capacity: 2/4 filled</span>
+<span class="text-secondary">50% Full</span>
+</div>
+<div class="h-2 w-full bg-[#d28151]/20 rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-1/2 rounded-full"></div>
+</div>
+</div>
+<div class="mt-auto flex items-center gap-3">
+<button class="flex-1 bg-[#ff602e] text-white py-3 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-all">Join Pool</button>
+<a class="p-3 text-[#3c4948] hover:bg-[#ffebd1] rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="mail">mail</span>
+</a>
+</div>
+</div>
+<!-- Card 2: Group Buy -->
+<div class="group relative bg-[#ffffff] rounded-3xl p-6 shadow-[0_4px_20px_rgba(39,25,2,0.03)] hover:shadow-[0_20px_40px_rgba(39,25,2,0.08)] transition-all flex flex-col overflow-hidden border-2 border-[#ffebd1]">
+<div class="absolute -bottom-12 -right-12 w-48 h-48 bg-[#af3000]/5 rounded-full group-hover:scale-110 transition-transform"></div>
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-2xl bg-[#ffebd1] flex items-center justify-center text-[#af3000]">
+<span class="material-symbols-outlined" data-icon="shopping_basket">shopping_basket</span>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="bg-[#006a67] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">Flash Deal</span>
+<span class="text-[10px] text-[#af3000] font-bold italic">Ends in 4h</span>
+</div>
+</div>
+<h3 class="text-xl font-bold text-[#271902] mb-2 leading-tight">Organic Avocado Bulk Order</h3>
+<p class="text-sm text-[#3c4948] mb-6 line-clamp-2">Direct from orchard. Need 10 more kg to unlock the 40% discount tier. Fresh and creamy!</p>
+<div class="flex items-center gap-3 mb-6 p-3 bg-[#fff8f3] rounded-2xl border border-[#fff2e2]">
+<div class="relative">
+<img alt="Organizer Avatar" class="w-10 h-10 rounded-full object-cover" data-alt="Portrait of a cheerful young woman with curly hair against a soft green garden background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHPe-uZhkgKljdNPtevxWMg_34uMmpphAianpeCMaePLpN-NUfNQr9Qw4-X4O-JIZ5nXWx3mKUbUeeTuoZNgLHNblLdH6dXvlF8_8XmTuuYmmMRmL0dp4znjfZWulJUPG1bK3LOopBE7ju50JcyN-dWMGWljY971kmKtokjD5tVshhJ5QFqgc3krmmNsZbuPqEHoZVKlhRoGXZi9YUJMlR9qSF3fZ9hgRVkEJ2JY2C99Xs8xGxhjIPeJgTp0mbouf4lJPdZhIT1xg"/>
+<div class="absolute -bottom-1 -right-1 bg-secondary rounded-full p-0.5 border-2 border-white">
+<span class="material-symbols-outlined text-[8px] text-white font-bold" data-icon="verified" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div>
+<p class="text-xs font-bold text-[#271902]">Sarah Jenkins</p>
+<p class="text-[10px] text-secondary font-semibold">Community Host</p>
+</div>
+<div class="ml-auto text-right">
+<p class="text-xs font-black text-[#af3000]">~₹280/kg</p>
+<p class="text-[10px] text-[#3c4948] line-through">₹450/kg</p>
+</div>
+</div>
+<div class="space-y-2 mb-8">
+<div class="flex justify-between text-[11px] font-bold text-[#3c4948]">
+<span>Quota: 12/20kg ordered</span>
+<span class="text-tertiary">60% Reached</span>
+</div>
+<div class="h-2 w-full bg-[#d28151]/20 rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-tertiary to-tertiary-container w-[60%] rounded-full"></div>
+</div>
+</div>
+<div class="mt-auto flex items-center gap-3">
+<button class="flex-1 bg-[#ff602e] text-white py-3 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-all">Join Pool</button>
+<a class="p-3 text-[#3c4948] hover:bg-[#ffebd1] rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="question_answer">question_answer</span>
+</a>
+</div>
+</div>
+<!-- Card 3: Ride Share -->
+<div class="group relative bg-[#ffffff] rounded-3xl p-6 shadow-[0_4px_20px_rgba(39,25,2,0.03)] hover:shadow-[0_20px_40px_rgba(39,25,2,0.08)] transition-all flex flex-col overflow-hidden">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-2xl bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="airport_shuttle">airport_shuttle</span>
+</div>
+<span class="bg-[#fff2e2] text-[#3c4948] text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">Airport Link</span>
+</div>
+<h3 class="text-xl font-bold text-[#271902] mb-2 leading-tight">Terminal 3 - Sunday Evening</h3>
+<p class="text-sm text-[#3c4948] mb-6 line-clamp-2">Splitting a SUV cab to the airport this Sunday. Space for 2 more people with luggage.</p>
+<div class="flex items-center gap-3 mb-6 p-3 bg-[#fff8f3] rounded-2xl border border-[#fff2e2]">
+<div class="relative">
+<img alt="Organizer Avatar" class="w-10 h-10 rounded-full object-cover" data-alt="Portrait of a young man with glasses in a modern apartment setting with natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASVVo45YaRWpkNQob-RBxInnm1xKE08MwgHviEonfo9nlsE9HO-5RCMCOnBRY-YwQUaVR819yp3rbVu64T1ST-uBVMLHm4CJAMliEEQ65UMLOSkWbWeerqBpg2NTYeP-73LlZ0bCVq0nuA91tpVnswIX5W3muxQCcCVJ60CChQRyjQjqKmWsSac3jx2q0w0F6HVGzDI3xw-GtVHJvQtd2IGYnh9Rttq88d4UdAXvc_2FeonoQR2ZpwxH71OdVgWkN0WK0SJ1f7Kuo"/>
+</div>
+<div>
+<p class="text-xs font-bold text-[#271902]">Rahul Varma</p>
+<p class="text-[10px] text-[#3c4948] font-semibold">New Neighbor</p>
+</div>
+<div class="ml-auto text-right">
+<p class="text-xs font-black text-[#af3000]">~₹420</p>
+<p class="text-[10px] text-[#3c4948]">split cost</p>
+</div>
+</div>
+<div class="space-y-2 mb-8">
+<div class="flex justify-between text-[11px] font-bold text-[#3c4948]">
+<span>Capacity: 2/3 filled</span>
+<span class="text-secondary">Almost Full</span>
+</div>
+<div class="h-2 w-full bg-[#d28151]/20 rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[66%] rounded-full"></div>
+</div>
+</div>
+<div class="mt-auto flex items-center gap-3">
+<button class="flex-1 bg-[#ff602e] text-white py-3 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-all">Join Pool</button>
+<a class="p-3 text-[#3c4948] hover:bg-[#ffebd1] rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="send">send</span>
+</a>
+</div>
+</div>
+<!-- Card 4: Bento Mini (Custom Request) -->
+<div class="md:col-span-2 xl:col-span-1 bg-gradient-to-br from-[#271902] to-[#3e2e12] rounded-3xl p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group">
+<div class="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+<span class="material-symbols-outlined text-6xl text-[#ff602e] mb-4 group-hover:scale-110 transition-transform" data-icon="rocket_launch">rocket_launch</span>
+<h3 class="text-2xl font-black text-white mb-3">Not seeing what you need?</h3>
+<p class="text-stone-400 text-sm mb-8 max-w-xs">Start your own pool and gather your community in minutes. Bulk orders, daily commutes, or custom events.</p>
+<button class="bg-white text-[#271902] px-8 py-3 rounded-2xl font-bold hover:bg-[#ffebd1] transition-colors shadow-xl">Launch Custom Pool</button>
+</div>
+</div>
+<!-- Optional Create Request Drawer Backdrop (Simulated) -->
+<div class="hidden fixed inset-0 bg-[#271902]/40 backdrop-blur-sm z-50 flex justify-end">
+<div class="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col p-8 overflow-y-auto">
+<div class="flex justify-between items-center mb-8">
+<h2 class="text-3xl font-black text-[#271902] tracking-tighter">New Pool Request</h2>
+<button class="p-2 hover:bg-[#fff2e2] rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+</div>
+<form class="space-y-6">
+<div class="grid grid-cols-2 gap-4">
+<div class="col-span-2 space-y-1.5">
+<label class="text-xs font-bold text-[#3c4948] uppercase">Request Type</label>
+<div class="grid grid-cols-2 gap-2">
+<label class="cursor-pointer">
+<input checked="" class="hidden peer" name="type" type="radio"/>
+<div class="flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-[#fff2e2] peer-checked:border-[#af3000] peer-checked:bg-[#ffebd1] transition-all">
+<span class="material-symbols-outlined text-sm" data-icon="shopping_cart">shopping_cart</span>
+<span class="text-sm font-bold">Group Buy</span>
+</div>
+</label>
+<label class="cursor-pointer">
+<input class="hidden peer" name="type" type="radio"/>
+<div class="flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-[#fff2e2] peer-checked:border-[#af3000] peer-checked:bg-[#ffebd1] transition-all">
+<span class="material-symbols-outlined text-sm" data-icon="car_sharing">car_rental</span>
+<span class="text-sm font-bold">Ride Share</span>
+</div>
+</label>
+</div>
+</div>
+<div class="col-span-2 space-y-1.5">
+<label class="text-xs font-bold text-[#3c4948] uppercase">Title</label>
+<input class="w-full p-4 rounded-xl border-2 border-[#fff2e2] focus:border-[#af3000] focus:ring-0 text-sm font-medium" placeholder="e.g. Costco Bulk Paper Towels" type="text"/>
+</div>
+<div class="col-span-2 space-y-1.5">
+<label class="text-xs font-bold text-[#3c4948] uppercase">Description</label>
+<textarea class="w-full p-4 rounded-xl border-2 border-[#fff2e2] focus:border-[#af3000] focus:ring-0 text-sm font-medium" placeholder="Describe what you're planning..." rows="3"></textarea>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-[#3c4948] uppercase">Max Participants</label>
+<input class="w-full p-4 rounded-xl border-2 border-[#fff2e2] focus:border-[#af3000] focus:ring-0 text-sm font-medium" placeholder="5" type="number"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-[#3c4948] uppercase">Est. Cost (₹)</label>
+<input class="w-full p-4 rounded-xl border-2 border-[#fff2e2] focus:border-[#af3000] focus:ring-0 text-sm font-medium" placeholder="500" type="text"/>
+</div>
+<div class="col-span-2 space-y-1.5">
+<label class="text-xs font-bold text-[#3c4948] uppercase">Location</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-stone-400" data-icon="location_on">location_on</span>
+<input class="w-full pl-11 p-4 rounded-xl border-2 border-[#fff2e2] focus:border-[#af3000] focus:ring-0 text-sm font-medium" placeholder="Enter Pickup Point or Address" type="text"/>
+</div>
+</div>
+</div>
+<button class="w-full py-4 bg-[#af3000] text-white rounded-2xl font-bold text-lg shadow-xl active:scale-95 transition-all mt-4" type="submit">Post Request</button>
+</form>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-[#271902] w-full py-12 px-8 border-t border-stone-800">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-7xl mx-auto">
+<div class="col-span-1 md:col-span-1">
+<span class="text-[#fff8f3] font-bold text-xl mb-4 block">CommunityCollab</span>
+<p class="text-stone-400 text-xs leading-relaxed max-w-xs">Built for the Kinetic Hearth. Connecting neighbors through shared goals and mutual support.</p>
+</div>
+<div class="flex flex-col gap-3">
+<h4 class="text-white font-bold text-sm mb-2">Navigation</h4>
+<a class="text-stone-500 hover:text-[#03A6A1] transition-colors text-xs font-label" href="#">Explore Projects</a>
+<a class="text-stone-500 hover:text-[#03A6A1] transition-colors text-xs font-label" href="#">My Dashboard</a>
+<a class="text-stone-500 hover:text-[#03A6A1] transition-colors text-xs font-label" href="#">Safety Guidelines</a>
+</div>
+<div class="flex flex-col gap-3">
+<h4 class="text-white font-bold text-sm mb-2">Legal</h4>
+<a class="text-stone-500 hover:text-[#03A6A1] transition-colors text-xs font-label" href="#">Privacy Policy</a>
+<a class="text-stone-500 hover:text-[#03A6A1] transition-colors text-xs font-label" href="#">Terms of Service</a>
+<a class="text-stone-500 hover:text-[#03A6A1] transition-colors text-xs font-label" href="#">Community Guidelines</a>
+</div>
+<div class="flex flex-col gap-3">
+<h4 class="text-white font-bold text-sm mb-2">Support</h4>
+<a class="text-stone-500 hover:text-[#03A6A1] transition-colors text-xs font-label" href="#">Help Center</a>
+<a class="text-stone-500 hover:text-[#03A6A1] transition-colors text-xs font-label" href="#">Contact Us</a>
+<div class="flex gap-4 mt-2">
+<span class="material-symbols-outlined text-stone-500 hover:text-white cursor-pointer" data-icon="public">public</span>
+<span class="material-symbols-outlined text-stone-500 hover:text-white cursor-pointer" data-icon="share">share</span>
+</div>
+</div>
+</div>
+<div class="max-w-7xl mx-auto mt-12 pt-8 border-t border-stone-800/50 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-stone-400 text-[10px] tracking-wide">© 2024 CommunityCollab. Built for the Kinetic Hearth.</p>
+<div class="flex gap-4">
+<img alt="Powered by Partner" class="h-6 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all" data-alt="Abstract colorful logo representating growth and connectivity with vibrant gradients" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7o-z792aTmfcDNYWPjQ5b36dcOsYl6eNcMvqeCoAw7JJ3L9b0khFVN9uyDrEkFBxsYh4ihYB6i69sq0_5OQpCdz18sMaFBNxrpuYTSriBpERPMY9tlTIFkSODRi22SUPok7I570fTa_sD0AqyRlxycOEdA7XSwlCom3Xh-Z_Vrqz1nSmK583vmfNjNzNJpI1OriPjQ759qjpWn1RJEs0M9c7JC5B2-T8D_UHE3VIAa7uiwAP0SpZi07CgMoToz4WMf6eoca3LlIo"/>
+</div>
+</div>
+</footer>
+<!-- Mobile Navigation (Bottom Bar) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full bg-[#fff8f3] border-t-0 shadow-[0_-10px_30px_rgba(39,25,2,0.08)] px-6 py-3 flex justify-between items-center z-50">
+<a class="flex flex-col items-center gap-1 text-[#3c4948]" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] font-bold">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-[#3c4948]" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="text-[10px] font-bold">Explore</span>
+</a>
+<div class="relative -mt-10">
+<button class="w-14 h-14 bg-[#af3000] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#af3000]/40">
+<span class="material-symbols-outlined text-3xl" data-icon="add">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-[#af3000]" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="text-[10px] font-bold">Requests</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-[#3c4948]" href="#">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="text-[10px] font-bold">Profile</span>
+</a>
+</nav>
+</body></html>

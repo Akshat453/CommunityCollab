@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Messages - CommunityCollab</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary": "#ffffff",
+              "surface-container-low": "#fff2e2",
+              "surface-bright": "#fff8f3",
+              "primary-fixed-dim": "#ffb59f",
+              "on-tertiary-container": "#4f2000",
+              "on-surface-variant": "#3c4948",
+              "secondary": "#006a67",
+              "primary-fixed": "#ffdbd1",
+              "on-secondary-container": "#00716d",
+              "error-container": "#ffdad6",
+              "primary-container": "#ff602e",
+              "on-secondary-fixed": "#00201f",
+              "error": "#ba1a1a",
+              "primary": "#af3000",
+              "surface": "#fff8f3",
+              "on-surface": "#271902",
+              "on-primary-container": "#5a1400",
+              "on-secondary": "#ffffff",
+              "secondary-fixed": "#7bf6f0",
+              "on-error": "#ffffff",
+              "secondary-fixed-dim": "#5bd9d3",
+              "inverse-primary": "#ffb59f",
+              "inverse-surface": "#3e2e12",
+              "surface-container-high": "#ffe4bf",
+              "tertiary": "#904c21",
+              "on-primary-fixed": "#3a0a00",
+              "background": "#fff8f3",
+              "surface-container-highest": "#fadfb7",
+              "surface-tint": "#af3000",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#00504d",
+              "on-tertiary-fixed": "#331200",
+              "on-primary-fixed-variant": "#862300",
+              "on-tertiary-fixed-variant": "#73350b",
+              "outline": "#6c7a78",
+              "tertiary-container": "#d28151",
+              "secondary-container": "#7bf6f0",
+              "inverse-on-surface": "#ffeed9",
+              "surface-dim": "#f1d6af",
+              "surface-container": "#ffebd1",
+              "outline-variant": "#bcc9c8",
+              "tertiary-fixed-dim": "#ffb68e",
+              "surface-variant": "#fadfb7",
+              "on-background": "#271902",
+              "surface-container-lowest": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "tertiary-fixed": "#ffdbca"
+            },
+            fontFamily: {
+              "headline": ["Plus Jakarta Sans"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 w-full z-50 bg-[#fff8f3]/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(39,25,2,0.06)] flex justify-between items-center px-6 py-3 w-full">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold text-[#af3000] tracking-tighter">CommunityCollab</span>
+<div class="hidden md:flex items-center gap-6">
+<nav class="flex gap-6 text-sm font-medium">
+<a class="text-[#3c4948] dark:text-stone-400 hover:bg-[#ffebd1] transition-colors px-3 py-1 rounded-lg" href="#">Home</a>
+<a class="text-[#3c4948] dark:text-stone-400 hover:bg-[#ffebd1] transition-colors px-3 py-1 rounded-lg" href="#">Explore</a>
+<a class="text-[#af3000] font-bold border-b-4 border-[#af3000] px-3 py-1" href="#">Messages</a>
+</nav>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<button class="p-2 rounded-full hover:bg-[#ffebd1] transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-[#af3000]">notifications</span>
+</button>
+</div>
+<div class="relative group">
+<button class="p-2 rounded-full hover:bg-[#ffebd1] transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-[#af3000]">settings</span>
+</button>
+</div>
+<div class="h-10 w-10 rounded-full bg-surface-container overflow-hidden border-2 border-primary-container">
+<img alt="User profile avatar with teal verified badge" class="w-full h-full object-cover" data-alt="Close-up professional portrait of a smiling man with short dark hair in a well-lit modern office environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRTws_zUQzOyOtP-dDDXERaxI5SVG-QBUMg6YFLSmgClEKkdty4ow0o0QLd3ngN0087o1rzfndyBrN2vaEjQ1YsZilNkmQrMabekiyyZ1B5xaO3qnfmph4NfRZLpMvMklzSVsQEqZfvZYGFO3fmGAP_U6bZH-U-4xo2AB-mwpbJq1f7m1tjkE7dcNl8tQnR7wMJ11d6v01-w54-0xMMTo7pXHapheSGOIfKb8mMbTnqvrtF352r5jRnlSkOX8Daa3ZzFBCK5jbuGk"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar Shell (Desktop) -->
+<aside class="hidden lg:flex flex-col gap-y-2 py-8 pr-4 h-screen w-64 fixed left-0 top-0 bg-[#fff8f3] dark:bg-stone-950 z-40 mt-16">
+<div class="px-6 mb-6">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-primary-container rounded-xl flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">fireplace</span>
+</div>
+<div>
+<h2 class="text-[#af3000] font-black uppercase tracking-widest text-xs">Kinetic Hearth</h2>
+<p class="text-[10px] text-on-surface-variant font-label">Collaborative Hub</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:text-[#af3000] hover:translate-x-1 transition-all" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-medium text-sm">Home</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:text-[#af3000] hover:translate-x-1 transition-all" href="#">
+<span class="material-symbols-outlined">explore</span>
+<span class="font-medium text-sm">Explore</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:text-[#af3000] hover:translate-x-1 transition-all" href="#">
+<span class="material-symbols-outlined">event</span>
+<span class="font-medium text-sm">My Events</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 bg-[#ffebd1] text-[#271902] rounded-r-full font-bold shadow-sm" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-medium text-sm">Messages</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-[#3c4948] hover:text-[#af3000] hover:translate-x-1 transition-all" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-medium text-sm">Skill Exchange</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<button class="w-full py-4 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined">add_circle</span>
+<span>Create New Task</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-16 h-screen flex flex-col overflow-hidden">
+<div class="flex-1 flex overflow-hidden">
+<!-- Left Panel: Conversation List -->
+<section class="w-full md:w-80 lg:w-96 bg-surface-container-low flex flex-col border-r-0">
+<div class="p-6">
+<h1 class="text-2xl font-extrabold text-on-surface tracking-tight mb-4">Messages</h1>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full pl-10 pr-4 py-3 bg-surface rounded-xl border-none focus:ring-2 focus:ring-primary-container text-sm font-label" placeholder="Search chats..." type="text"/>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto scrollbar-hide">
+<!-- Chat Item: Active -->
+<div class="p-4 mx-2 rounded-2xl bg-surface-container cursor-pointer mb-1 relative overflow-hidden group">
+<div class="absolute left-0 top-0 h-full w-1 bg-secondary"></div>
+<div class="flex gap-4">
+<div class="relative flex-shrink-0">
+<img alt="Group chat icon" class="w-12 h-12 rounded-xl object-cover" data-alt="Close-up of a diverse group of young people laughing and collaborating around a wooden table in a sunlit loft" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyBneXiEBETSkJvt3cwwD4NTu7t5ptDlU33MY3oEqGjSg_Y1faqcLvTD6ADjehuW5BC09e2fdZaMXNs7txkWjdVGXbABrUheXSFc2ibva3VR1xZ2qLMUy5eGx-bxJsWUqaa2GOCgenDWK4WtoJyMPGEUSQWBmAnSkkoZVr5n1CXIWQKIqCsDFCCg3IshWLDOeG-upuyNAs7ebZBTPXwt_weL7Jyl8ClLy-8GrBVEgtXCQzrNJuRV_4Dhbi9dR5TH82c3hrxXb1ve0"/>
+<div class="absolute -bottom-1 -right-1 w-4 h-4 bg-secondary rounded-full border-2 border-surface flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px] text-white" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-bold text-on-surface truncate">Skill-Share: UI Design</h3>
+<span class="text-[10px] font-label text-secondary font-bold">Just now</span>
+</div>
+<p class="text-xs text-on-surface-variant truncate font-medium">Elena: Did anyone see the new figma update?</p>
+</div>
+<div class="flex flex-col items-end gap-2">
+<div class="w-5 h-5 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center">3</div>
+</div>
+</div>
+</div>
+<!-- Chat Item: DM -->
+<div class="p-4 mx-2 rounded-2xl hover:bg-surface-container transition-all cursor-pointer mb-1">
+<div class="flex gap-4">
+<div class="relative flex-shrink-0">
+<img alt="Marcus Lee avatar" class="w-12 h-12 rounded-xl object-cover" data-alt="Portrait of a young man with glasses and a friendly expression, soft natural lighting in a garden setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWfIwjjypn2z_C37QxwPgIlBfPZGFEqwJr8ARQcLRmU-3A4hqI9ej3Gk1BkToFz4vVgCIulu9SMmW-eKdd6oQiUS-zycOlSnHx1vdE1bfAfAPzQj82w6YiFGSdr03Fsjb_BtODl6JMlEP3hZlQgnaLiA4VZ0QLOtLWpy34f6csx7sd8JeQUtQFJmt72v7ZZQklwa2LIa7CJaLvmUnngZUWnC9HU8bLhTwRmbRODKyUpwleBkcqaXTSk0hqEq3yJSLAcQtPABjrt5A"/>
+<div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-surface"></div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-bold text-on-surface truncate">Marcus Lee</h3>
+<span class="text-[10px] font-label text-on-surface-variant">2:45 PM</span>
+</div>
+<p class="text-xs text-on-surface-variant truncate">That's a great idea! I can help with...</p>
+</div>
+</div>
+</div>
+<!-- Chat Item: Resource Group -->
+<div class="p-4 mx-2 rounded-2xl hover:bg-surface-container transition-all cursor-pointer mb-1">
+<div class="flex gap-4">
+<div class="w-12 h-12 bg-surface-variant rounded-xl flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-bold text-on-surface truncate">Garden Tools Sharing</h3>
+<span class="text-[10px] font-label text-on-surface-variant">Yesterday</span>
+</div>
+<p class="text-xs text-on-surface-variant truncate">Sarah posted a new resource: Power Drill</p>
+</div>
+</div>
+</div>
+<!-- Additional Mock Rows -->
+<div class="p-4 mx-2 rounded-2xl hover:bg-surface-container transition-all cursor-pointer mb-1">
+<div class="flex gap-4">
+<img alt="David K avatar" class="w-12 h-12 rounded-xl object-cover flex-shrink-0" data-alt="Middle-aged man with a warm smile and rugged beard, outdoor natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlkOsYRSVmKq8Ob2REcBwA8RAwX7pkAS1uEBgmhQi0aK9dWB2AJPVYoc0LFMX5mRbXSCgVHcsy4JNclU-OIg3g0BEHCu0P10Y9RIBYAKlZ6BT8lK5ir2gDL-tEr9C63TcGmMP66_SGj2iAd3_mPNhbuASM758j2FRdlDYm0XfS3Ktwi9PzXsyG_XfGLKhPuD1t4Cb_zJCAmA4EJBhueOaEHQU0a3YGk8_xFp3kbiHT5T13tuNh-yjFeS70y-pfNTaPFf0zqao_R60"/>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-bold text-on-surface truncate">David K.</h3>
+<span class="text-[10px] font-label text-on-surface-variant">Monday</span>
+</div>
+<p class="text-xs text-on-surface-variant truncate">Are we still on for the community garden?</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Panel: Chat Window -->
+<section class="flex-1 flex flex-col bg-surface relative">
+<!-- Chat Header -->
+<header class="px-6 py-4 flex items-center justify-between border-b-0 bg-surface-bright/50 backdrop-blur-md sticky top-0 z-10">
+<div class="flex items-center gap-4">
+<div class="relative">
+<img alt="Active chat avatar" class="w-10 h-10 rounded-lg object-cover" data-alt="Group of diverse people working in a sunny workspace with plants and modern furniture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQEbDHAMReOWM2LiFwow-PboYvdl4dIVT_TRLxKt8U0mcT-YNPzRdDmE-oSs61PUqBsEbmPN2uWyxbu_ViBjXw7La7b17dF_GX2hnXAyBqg9D-bwF_f8DiKYaK1djVGtxkWqs7sWExI-atizQzVaW-qZxrPB3bgHoTXL_0edQPabxhpQ8olIjs10PQoQn-qNA6FB0GceM0cUcBjuWbHpwAhUVv-pjNPxaOmCUjOnE3WhUUUYkVJWEoTAOsGhmsjSZ_L3vvTYGuMBg"/>
+<div class="absolute -bottom-1 -right-1 w-3 h-3 bg-secondary rounded-full border-2 border-surface"></div>
+</div>
+<div>
+<h2 class="text-lg font-extrabold text-on-surface leading-tight">Skill-Share: UI Design</h2>
+<p class="text-[10px] font-label text-secondary font-bold uppercase tracking-wider">8 members active</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined">call</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined">videocam</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+</div>
+</header>
+<!-- Messages Area -->
+<div class="flex-1 overflow-y-auto p-6 space-y-6 bg-surface scrollbar-hide">
+<!-- Date Separator -->
+<div class="flex justify-center">
+<span class="px-3 py-1 bg-surface-container-low text-[10px] font-bold text-on-surface-variant rounded-full uppercase tracking-tighter">Today</span>
+</div>
+<!-- Received Message -->
+<div class="flex items-end gap-3 max-w-[80%]">
+<img alt="Elena avatar" class="w-8 h-8 rounded-lg object-cover" data-alt="Young woman with curly hair and minimalist aesthetic in soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDbA4kpLCzYggFrb0_2QOvjFY6BxLz8FPTl5mtJ1u-YTGLhtnZAh_1mwJFQSCAmp5cY4Ikor6DS1irT5o3_wLI1ZTf89K57pIYg-ab9ASNjWjgk3-rfBw_4ak3SBMvs3_p8aqz7G9IFq1IKg5JXNMv-B6YnTpfy4uft1R1HJ6RbOYA8vJWOTpjRxIivqcGy3j_IM0SR1Z1osY59PDd2CswEzVN-tTZJVvfbR5VEYf3Ho2bifAWqaoQeBMdAFwtDd-AnuBg56htYxHg"/>
+<div class="space-y-1">
+<p class="text-[10px] font-bold ml-2 text-on-surface-variant">Elena Ruiz</p>
+<div class="bg-surface-container p-4 rounded-2xl rounded-bl-none shadow-sm">
+<p class="text-sm text-on-surface">Did anyone see the new figma update? The variables feature is absolutely game-changing for our component library! 🚀</p>
+</div>
+<p class="text-[9px] font-label text-on-surface-variant ml-2">10:42 AM</p>
+</div>
+</div>
+<!-- Sent Message -->
+<div class="flex items-end gap-3 max-w-[80%] ml-auto flex-row-reverse">
+<div class="space-y-1 text-right">
+<div class="bg-gradient-to-br from-primary to-primary-container p-4 rounded-2xl rounded-br-none shadow-md">
+<p class="text-sm text-white">Yes! I've been playing with it all morning. It’s going to save us so much time on the CommunityCollab handoff.</p>
+</div>
+<div class="flex justify-end items-center gap-1 mr-2">
+<p class="text-[9px] font-label text-on-surface-variant">10:45 AM</p>
+<span class="material-symbols-outlined text-[10px] text-secondary" style="font-variation-settings: 'FILL' 1;">done_all</span>
+</div>
+</div>
+</div>
+<!-- Shared Resource Card (Embedded in Chat) -->
+<div class="flex items-end gap-3 max-w-[80%]">
+<img alt="Elena avatar" class="w-8 h-8 rounded-lg object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAF41qe6CCJY6wXRx32l66q55pvzLNYzM9RDniXq4g5RamxCZVhbXiKo0MwVByVNv7xF30p9YCTUa5EjpbJOCzt7lAPbPm7gEsXxOPloWBwf-Swh4iMafWdrU_Xru3X8Yf2kPtIXTuXOD2sAYtYbQKIjhrUCbi_uC6hRlFpJZkaHzVxBCrKcV4tNfdBCk4z6GioFh5GxEZ23luR3SjNdgTMUtn9xqO6eQHlHyDFCb8rVe0pHrYGy8XDNrpKnQzfRsQgQr2aKW_hkpQ"/>
+<div class="space-y-2 flex-1">
+<div class="bg-surface-container p-1 rounded-2xl rounded-bl-none shadow-sm overflow-hidden">
+<div class="bg-surface-container-highest p-4 rounded-xl flex gap-4 border border-outline-variant/20">
+<div class="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">menu_book</span>
+</div>
+<div class="flex-1">
+<h4 class="text-sm font-bold text-on-surface">UI Design Best Practices.pdf</h4>
+<p class="text-[10px] text-on-surface-variant">Shared 2 mins ago • 4.2 MB</p>
+</div>
+<button class="self-center p-2 bg-secondary text-white rounded-lg active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">download</span>
+</button>
+</div>
+<div class="p-3">
+<p class="text-xs text-on-surface">Here's the guide I mentioned! Check out page 12 for the layering logic.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Typing Indicator -->
+<div class="flex items-center gap-2 px-10">
+<div class="flex gap-1">
+<div class="w-1.5 h-1.5 bg-outline-variant rounded-full animate-bounce"></div>
+<div class="w-1.5 h-1.5 bg-outline-variant rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+<div class="w-1.5 h-1.5 bg-outline-variant rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+</div>
+<span class="text-[10px] font-medium text-on-surface-variant italic">Marcus is typing...</span>
+</div>
+</div>
+<!-- Chat Input Area -->
+<footer class="p-6 bg-surface-container-low/50 border-t-0 backdrop-blur-xl">
+<!-- Quick Action Chips -->
+<div class="flex gap-3 mb-4 overflow-x-auto scrollbar-hide pb-2">
+<button class="flex items-center gap-2 px-4 py-2 bg-secondary text-white rounded-full text-xs font-bold hover:bg-[#03A6A1] transition-colors whitespace-nowrap active:scale-95">
+<span class="material-symbols-outlined text-sm">share_reviews</span>
+                            Share Resource
+                        </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-tertiary-container text-on-tertiary-container rounded-full text-xs font-bold hover:opacity-90 transition-colors whitespace-nowrap active:scale-95">
+<span class="material-symbols-outlined text-sm">event_available</span>
+                            Create Quick Event
+                        </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container-highest text-on-surface-variant rounded-full text-xs font-bold hover:bg-surface-variant transition-colors whitespace-nowrap">
+<span class="material-symbols-outlined text-sm">poll</span>
+                            New Poll
+                        </button>
+</div>
+<!-- Input Box -->
+<div class="relative flex items-center gap-3">
+<div class="flex-1 relative">
+<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+<button class="text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-xl">mood</span>
+</button>
+</div>
+<input class="w-full pl-12 pr-24 py-4 bg-surface rounded-2xl border-none focus:ring-2 focus:ring-secondary/50 text-sm font-label shadow-sm" placeholder="Type a message..." type="text"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+<button class="p-1 text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<button class="p-1 text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined">image</span>
+</button>
+</div>
+</div>
+<button class="w-12 h-12 bg-secondary text-white rounded-2xl flex items-center justify-center hover:shadow-lg hover:shadow-secondary/20 transition-all active:scale-95">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</footer>
+</section>
+</div>
+</main>
+<!-- Footer Shell (Only visible on scroll/large screens) -->
+<footer class="lg:ml-64 bg-[#271902] py-12 px-8 border-t border-stone-800">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-7xl mx-auto">
+<div class="col-span-1 md:col-span-1">
+<span class="text-[#fff8f3] font-bold text-xl block mb-4">CommunityCollab</span>
+<p class="font-['Inter'] text-xs tracking-wide text-stone-400">© 2024 CommunityCollab. Built for the Kinetic Hearth.</p>
+</div>
+<div class="col-span-1">
+<h4 class="text-[#ff602e] font-bold text-sm mb-4">Platform</h4>
+<ul class="space-y-2">
+<li><a class="font-['Inter'] text-xs text-stone-500 hover:text-[#03A6A1] transition-colors" href="#">Privacy Policy</a></li>
+<li><a class="font-['Inter'] text-xs text-stone-500 hover:text-[#03A6A1] transition-colors" href="#">Terms of Service</a></li>
+</ul>
+</div>
+<div class="col-span-1">
+<h4 class="text-[#ff602e] font-bold text-sm mb-4">Support</h4>
+<ul class="space-y-2">
+<li><a class="font-['Inter'] text-xs text-stone-500 hover:text-[#03A6A1] transition-colors" href="#">Community Guidelines</a></li>
+<li><a class="font-['Inter'] text-xs text-stone-500 hover:text-[#03A6A1] transition-colors" href="#">Contact Us</a></li>
+</ul>
+</div>
+<div class="col-span-1">
+<div class="flex gap-4">
+<div class="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-400 hover:text-white transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-lg">share</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center text-stone-400 hover:text-white transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-lg">public</span>
+</div>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

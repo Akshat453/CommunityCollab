@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Community Events | CommunityCollab</title>
+<!-- Google Fonts: Plus Jakarta Sans & Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary": "#ffffff",
+              "surface-container-low": "#fff2e2",
+              "surface-bright": "#fff8f3",
+              "primary-fixed-dim": "#ffb59f",
+              "on-tertiary-container": "#4f2000",
+              "on-surface-variant": "#3c4948",
+              "secondary": "#006a67",
+              "primary-fixed": "#ffdbd1",
+              "on-secondary-container": "#00716d",
+              "error-container": "#ffdad6",
+              "primary-container": "#ff602e",
+              "on-secondary-fixed": "#00201f",
+              "error": "#ba1a1a",
+              "primary": "#af3000",
+              "surface": "#fff8f3",
+              "on-surface": "#271902",
+              "on-primary-container": "#5a1400",
+              "on-secondary": "#ffffff",
+              "secondary-fixed": "#7bf6f0",
+              "on-error": "#ffffff",
+              "secondary-fixed-dim": "#5bd9d3",
+              "inverse-primary": "#ffb59f",
+              "inverse-surface": "#3e2e12",
+              "surface-container-high": "#ffe4bf",
+              "tertiary": "#904c21",
+              "on-primary-fixed": "#3a0a00",
+              "background": "#fff8f3",
+              "surface-container-highest": "#fadfb7",
+              "surface-tint": "#af3000",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#00504d",
+              "on-tertiary-fixed": "#331200",
+              "on-primary-fixed-variant": "#862300",
+              "on-tertiary-fixed-variant": "#73350b",
+              "outline": "#6c7a78",
+              "tertiary-container": "#d28151",
+              "secondary-container": "#7bf6f0",
+              "inverse-on-surface": "#ffeed9",
+              "surface-dim": "#f1d6af",
+              "surface-container": "#ffebd1",
+              "outline-variant": "#bcc9c8",
+              "tertiary-fixed-dim": "#ffb68e",
+              "surface-variant": "#fadfb7",
+              "on-background": "#271902",
+              "surface-container-lowest": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "tertiary-fixed": "#ffdbca"
+            },
+            fontFamily: {
+              "headline": ["Plus Jakarta Sans"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-nav {
+        background: rgba(255, 248, 243, 0.8);
+        backdrop-filter: blur(12px);
+      }
+      .primary-gradient {
+        background: linear-gradient(135deg, #af3000 0%, #ff602e 100%);
+      }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 glass-nav shadow-[0_20px_40px_rgba(39,25,2,0.06)]">
+<div class="flex justify-between items-center px-6 py-3 w-full max-w-[1440px] mx-auto">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold text-primary tracking-tighter">CommunityCollab</span>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-on-surface-variant hover:text-primary transition-colors font-medium" href="#">Home</a>
+<a class="text-primary font-bold border-b-4 border-primary pb-1" href="#">Explore</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-medium" href="#">My Events</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-full w-64 focus:ring-2 focus:ring-primary-container text-sm" placeholder="Search events..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 hover:bg-surface-container rounded-full transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
+</button>
+<button class="p-2 hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="ml-2 w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden border-2 border-primary-container/20">
+<img alt="User profile avatar with teal verified badge" data-alt="Close up portrait of a smiling woman with glasses and curly hair, warm natural lighting, soft background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2sgPmfpo7hcVlzQOEhwxctKrqU5KuIMrpXIOdtpHUflzMSL3OAW6dVTE3HQubgepgLsIKoox1DnIY8Zv9KtSbz4MQ-qyck7Pk77pFxT8y_ZNxKiaMPNQVDbrrtB5NZgL_pN426t9Sy7kKhS3E1Q01v7HCsJrnTPIU2u8IQlZ7GWKmmtnknSmBaasMjug37dSh8bau3iEg3h4SalzaUvloRcKsPnRkAYngqyvO1QP3E1HFR6DXB_S-ldyyIYexCkF4ZbK3SsLM01w"/>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Desktop Only) -->
+<aside class="hidden lg:flex flex-col gap-y-2 py-8 pr-4 h-screen w-64 fixed left-0 top-0 mt-16 bg-surface z-40">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-8 h-8 primary-gradient rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-sm" data-icon="hub">hub</span>
+</div>
+<span class="text-primary font-black uppercase tracking-widest text-xs">Kinetic Hearth</span>
+</div>
+<p class="text-[10px] font-label text-on-surface-variant tracking-wider uppercase">Collaborative Hub</p>
+</div>
+<div class="flex flex-col gap-1 px-3">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all rounded-r-full font-medium text-sm group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="home">home</span> Home
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 bg-surface-container text-on-surface rounded-r-full font-bold shadow-sm text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span> Explore
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all rounded-r-full font-medium text-sm group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="event">event</span> My Events
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all rounded-r-full font-medium text-sm group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="psychology">psychology</span> Skill Exchange
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all rounded-r-full font-medium text-sm group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="share_reviews">share_reviews</span> Resource Sharing
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all rounded-r-full font-medium text-sm group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="forum">forum</span> Messages
+            </a>
+</div>
+<div class="mt-auto px-6 pb-20">
+<button class="w-full primary-gradient text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+<span class="text-sm">Create New Task</span>
+</button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="lg:ml-64 pt-16 min-h-screen">
+<!-- Hero Banner -->
+<section class="relative h-[400px] w-full overflow-hidden">
+<div class="absolute inset-0 bg-on-surface/40 z-10"></div>
+<img alt="Community collaboration" class="w-full h-full object-cover" data-alt="Wide shot of a diverse group of people planting trees in an urban community garden, warm golden hour sunlight, soft focus greenery" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXb0L3y_7_OHL09uey9fcyy7wFGIV6wm6YvjQdFH1Ge2wEVnBFshY01AYS13nf3K3KHR31QsP1aufUdM2oXAfNBg2Lp-oNlsDl-0gF-uJ3izj8qbFyMaJ0bh-XHg2tSio9MFhaG5SJ5UTt9slruGmY1fZjeBWJNnciJIXkdRpIWw_jJpoE5chkpnQj4C1lsP9PIRzjZPFOU2cBiumEi_ngif_zzMsFagp-TIQkoVimmWBmjv8wf6PzMY3mkt0CUMHztt7pFUy_7hU"/>
+<div class="absolute inset-0 z-20 flex flex-col justify-center px-8 md:px-16 max-w-4xl">
+<h1 class="text-white text-5xl md:text-7xl font-headline font-extrabold tracking-tight leading-none mb-6">
+                    Make a Difference <br/><span class="text-primary-container">in Your Community</span>
+</h1>
+<p class="text-surface-bright/90 text-lg md:text-xl max-w-2xl font-medium leading-relaxed mb-8">
+                    Connect with neighbors, share skills, and build a stronger local ecosystem through grassroots events and collaborative action.
+                </p>
+<div class="flex gap-4">
+<button class="primary-gradient text-white px-8 py-4 rounded-xl font-bold shadow-xl shadow-primary/30 active:scale-95 transition-transform">
+                        Explore Local Events
+                    </button>
+<button class="bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-colors">
+                        How it Works
+                    </button>
+</div>
+</div>
+</section>
+<!-- Filter Bar -->
+<section class="sticky top-[64px] z-30 bg-surface-bright/90 backdrop-blur-md px-6 py-6 border-b border-outline-variant/10">
+<div class="max-w-7xl mx-auto flex flex-wrap items-center gap-4">
+<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-xl">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="category">category</span>
+<select class="bg-transparent border-none focus:ring-0 text-sm font-bold text-on-surface p-0 cursor-pointer">
+<option>All Categories</option>
+<option>Charity</option>
+<option>Clean-up</option>
+<option>Education</option>
+<option>Workshops</option>
+</select>
+</div>
+<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-xl">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="distance">distance</span>
+<select class="bg-transparent border-none focus:ring-0 text-sm font-bold text-on-surface p-0 cursor-pointer">
+<option>Within 5 miles</option>
+<option>Within 10 miles</option>
+<option>Any distance</option>
+</select>
+</div>
+<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-xl">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="calendar_month">calendar_month</span>
+<select class="bg-transparent border-none focus:ring-0 text-sm font-bold text-on-surface p-0 cursor-pointer">
+<option>Next 7 Days</option>
+<option>This Month</option>
+<option>Pick a Date</option>
+</select>
+</div>
+<div class="ml-auto flex items-center gap-2">
+<span class="text-xs font-label text-on-surface-variant uppercase tracking-widest mr-2">Sort by:</span>
+<button class="text-primary font-bold text-sm flex items-center gap-1">
+                        Upcoming <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Event Grid -->
+<section class="px-6 py-12 max-w-7xl mx-auto">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden hover:shadow-2xl hover:shadow-on-surface/5 transition-all flex flex-col group">
+<div class="relative h-56 overflow-hidden">
+<img alt="Food bank volunteering" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Organized crates of fresh vegetables in a bright community center hall, volunteer hands visible in the background, soft daylight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC9eAT2yAkENV1MyE_Eu8QBsYi_4EYSaR5S73l1yChdrYxXo0AWhuYLmBTVprIGknbIQ0HLRZFD-KWCpnEun5EFCGShLYQSvJ-MoThHnOvPcPfKZFxzv-bor2lfIs7QXeLSRMVkQtbfHnujw7OPprezpEC0iTcyKmB-5Dbhwkmf8QIKitVTb_g4JqKhNRIP92-vklP4EGGML_KjpYpeSNGWi8L3T9Cj-skOlFHOjIOtLMwG9tPIaXiNr1UHgVrSvb0ZNVIKE7JLQc"/>
+<div class="absolute top-4 left-4">
+<span class="bg-secondary text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">Charity</span>
+</div>
+<button class="absolute top-4 right-4 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors">
+<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="p-6 flex-1 flex flex-col">
+<div class="flex items-center gap-2 text-primary font-label text-[11px] font-bold uppercase tracking-tighter mb-2">
+<span class="material-symbols-outlined text-sm">schedule</span> SAT, OCT 12 • 9:00 AM
+                        </div>
+<h3 class="text-xl font-headline font-extrabold text-on-surface mb-3 leading-tight">Weekend Food Bank Drive</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6 line-clamp-2">Help us sort and package fresh produce for over 200 local families in need this weekend.</p>
+<div class="flex items-center gap-3 mb-6">
+<div class="w-8 h-8 rounded-full overflow-hidden">
+<img alt="Organizer" data-alt="Portrait of a friendly man with a short beard and blue shirt, neutral background, soft light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3ikMvqeiRY3XQv9wF6qg-9KRnHAdQMoa9yuI70o6H8G58XXo2hjY_1jGLRX23nM_iSMYtrRsSa6ooM_HeNr1gob6yN1X8RGJPo5me4K2ucCXbMMbpNqwkycVEDlyRWPT6AKa6jTrwtDIMFvddfOB9mobUdZLTbk41LA-kvE9105f_uGViwUZ4dcrZN4b87T_8Ny5AsWmWrPCJEvqKBn6ZvCnpMKZN76mEFhWZJ5qf4Nq2LkPpJsxQ0CashmSKIkcngqILVOYM5nc"/>
+</div>
+<div class="text-xs">
+<p class="font-bold text-on-surface">Marcus Chen</p>
+<p class="text-on-surface-variant">Central Community Hub</p>
+</div>
+</div>
+<div class="mb-6 space-y-2">
+<div class="flex justify-between text-xs font-bold mb-1">
+<span class="text-on-surface-variant">Volunteer Capacity</span>
+<span class="text-secondary">12/20 spots left</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 40%;"></div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2 mb-8">
+<span class="bg-[#ffebd1] text-tertiary text-[10px] font-bold px-2 py-1 rounded">Community</span>
+<span class="bg-[#ffebd1] text-tertiary text-[10px] font-bold px-2 py-1 rounded">Food Justice</span>
+</div>
+<div class="mt-auto grid grid-cols-2 gap-3">
+<button class="primary-gradient text-white py-3 rounded-lg font-bold text-sm shadow-md active:scale-95 transition-transform">Join Now</button>
+<button class="bg-surface-container text-on-surface py-3 rounded-lg font-bold text-sm hover:bg-surface-variant transition-colors">Details</button>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden hover:shadow-2xl hover:shadow-on-surface/5 transition-all flex flex-col group">
+<div class="relative h-56 overflow-hidden">
+<img alt="Beach clean-up" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Golden hour view of a clean coastline with blue waves gently crashing, soft sand and bright horizon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZSrHZNobE8EDEqBPkyW-QZGbECq5L2gqjnAWe2k7k12DFAUacF3rqinJ_skXdKkbWogC5rxE498KqOskrbdaKn6Y_vGIYVE-MyeMvKkOTf6TwCpjeDgiX5SRyogekh26d5A0ZGSnpHmvKFwL4qiv4i6-jpQQQgY93nbjIMT6ypl-aFyU6W6iJJLzl8NQZM5kg4Mu6QOEqjHKazP-HyQff1Whd4Ln0t1BAcAcyUUh5m-vw1co0PsfyxVu2ENw1Wdg5-CHVrMmNoco"/>
+<div class="absolute top-4 left-4">
+<span class="bg-secondary text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">Clean-up</span>
+</div>
+<button class="absolute top-4 right-4 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors">
+<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="p-6 flex-1 flex flex-col">
+<div class="flex items-center gap-2 text-primary font-label text-[11px] font-bold uppercase tracking-tighter mb-2">
+<span class="material-symbols-outlined text-sm">schedule</span> SUN, OCT 13 • 7:30 AM
+                        </div>
+<h3 class="text-xl font-headline font-extrabold text-on-surface mb-3 leading-tight">Coastal Restoration Drive</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6 line-clamp-2">Join the Kinetic Hearth coastal team for our monthly shoreline clean-up and dune protection effort.</p>
+<div class="flex items-center gap-3 mb-6">
+<div class="w-8 h-8 rounded-full overflow-hidden">
+<img alt="Organizer" data-alt="Portrait of a woman with a bright smile, natural outdoors lighting, wearing a green active top" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBs3Fs1FMVeBFpUJUxlcf7JWQADvp2om-CkE-mKxnpYyaMQijtMZ_7KvADD6QDhvqt43cIUzZOBLCXPjS3JME_99kF1NXy8fBcquAXHIY5tCr3A0PLkrd_yF_Iig7qYQANzcjE_FwfIdv9bqWhKVDS8MIgy6f4yFjQdljCh2IfgdxQtntruU_DIGrpZ3k7B63HRnG66Uch4PhGxcdTdpeGBJSTBSqcM1cFBKZIu1i6DSG1YpBgBbJa1NGjTiTSBrUxexxD_TmQWp_U"/>
+</div>
+<div class="text-xs">
+<p class="font-bold text-on-surface">Elena Rodriguez</p>
+<p class="text-on-surface-variant">EcoAction Collective</p>
+</div>
+</div>
+<div class="mb-6 space-y-2">
+<div class="flex justify-between text-xs font-bold mb-1">
+<span class="text-on-surface-variant">Volunteer Capacity</span>
+<span class="text-secondary">45/50 spots left</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 10%;"></div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2 mb-8">
+<span class="bg-[#ffebd1] text-tertiary text-[10px] font-bold px-2 py-1 rounded">Environment</span>
+<span class="bg-[#ffebd1] text-tertiary text-[10px] font-bold px-2 py-1 rounded">Morning</span>
+</div>
+<div class="mt-auto grid grid-cols-2 gap-3">
+<button class="primary-gradient text-white py-3 rounded-lg font-bold text-sm shadow-md active:scale-95 transition-transform">Join Now</button>
+<button class="bg-surface-container text-on-surface py-3 rounded-lg font-bold text-sm hover:bg-surface-variant transition-colors">Details</button>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden hover:shadow-2xl hover:shadow-on-surface/5 transition-all flex flex-col group">
+<div class="relative h-56 overflow-hidden">
+<img alt="Coding workshop" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Interior of a modern sunlit library with large windows, people working on laptops at wooden tables, warm cozy atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5C159c4LLii6fPvCKyRO009XzcLYSq0q-ZKR4Q7mIJgA4axzS90KOlfTWueiEhB3lglcNLGokAJw64KctfyZtEB3iXn4b9h3sxliOL2IVLpwDQbkbCZv8G-B5UbLXoLz7MOurZzwWx87Or_gKhupqq-IBA541ZXJMj5jMXhefCedMKf9olRW8PUB5m4AaxYWFNAZJ7hFkmthQHdSPt6G58fi4cdPXlj2IzKCRVX_to3e_KYWUYb4qfBH0W4DMhmbm5KHZM8wYac0"/>
+<div class="absolute top-4 left-4">
+<span class="bg-secondary text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">Education</span>
+</div>
+<button class="absolute top-4 right-4 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors">
+<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
+</button>
+</div>
+<div class="p-6 flex-1 flex flex-col">
+<div class="flex items-center gap-2 text-primary font-label text-[11px] font-bold uppercase tracking-tighter mb-2">
+<span class="material-symbols-outlined text-sm">schedule</span> WED, OCT 16 • 6:00 PM
+                        </div>
+<h3 class="text-xl font-headline font-extrabold text-on-surface mb-3 leading-tight">Code with Community</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6 line-clamp-2">A beginner-friendly workshop teaching essential digital literacy skills to senior citizens.</p>
+<div class="flex items-center gap-3 mb-6">
+<div class="w-8 h-8 rounded-full overflow-hidden">
+<img alt="Organizer" data-alt="Close up portrait of a young man with a friendly expression, soft office lighting, modern urban style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_ZNrRMdYKUkPycZxPY6uKIewIUr-j0fjQxpZqbjWUmCb9fa550z35m2jrJ8pp3g97yItOexLRNievgiubtI_0a_PP_nxLuZ-FH0eJPOE1n-tz7_RBXKG2-eWgzA2qR_jdjz3vg1j9XY7xnBD-j-xgJq9i6hMVxmszkTxfkSQu6vy718vTSsOVZZ3R1-AP3zS-n3hpRvNfHJLz_skcvwYZxaK1Edp7zJf6otrScNhqw7vfTGsk045zAWXDigPcGGyoYQLfJydIhkM"/>
+</div>
+<div class="text-xs">
+<p class="font-bold text-on-surface">Jordan Smyth</p>
+<p class="text-on-surface-variant">Tech4All Initiative</p>
+</div>
+</div>
+<div class="mb-6 space-y-2">
+<div class="flex justify-between text-xs font-bold mb-1">
+<span class="text-on-surface-variant">Volunteer Capacity</span>
+<span class="text-error font-bold">2/10 spots left</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-tertiary rounded-full" style="width: 80%;"></div>
+</div>
+</div>
+<div class="flex flex-wrap gap-2 mb-8">
+<span class="bg-[#ffebd1] text-tertiary text-[10px] font-bold px-2 py-1 rounded">Mentorship</span>
+<span class="bg-[#ffebd1] text-tertiary text-[10px] font-bold px-2 py-1 rounded">Tech</span>
+</div>
+<div class="mt-auto grid grid-cols-2 gap-3">
+<button class="primary-gradient text-white py-3 rounded-lg font-bold text-sm shadow-md active:scale-95 transition-transform">Join Now</button>
+<button class="bg-surface-container text-on-surface py-3 rounded-lg font-bold text-sm hover:bg-surface-variant transition-colors">Details</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Fixed Action Button -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="primary-gradient w-16 h-16 md:w-auto md:px-6 rounded-full shadow-2xl shadow-primary/40 flex items-center justify-center gap-3 text-white active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-2xl">add</span>
+<span class="hidden md:block font-bold">Create Event</span>
+</button>
+</div>
+<!-- Footer -->
+<footer class="bg-on-surface text-stone-400 py-12 px-8 w-full border-t border-stone-800 mt-20">
+<div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+<div class="space-y-4">
+<span class="text-white text-xl font-bold tracking-tighter">CommunityCollab</span>
+<p class="text-xs font-label leading-relaxed">
+                        The Kinetic Hearth is more than a platform; it's a movement towards intentional neighborhood synergy and shared success.
+                    </p>
+<div class="flex gap-4">
+<span class="material-symbols-outlined hover:text-secondary cursor-pointer" data-icon="public">public</span>
+<span class="material-symbols-outlined hover:text-secondary cursor-pointer" data-icon="groups">groups</span>
+<span class="material-symbols-outlined hover:text-secondary cursor-pointer" data-icon="hub">hub</span>
+</div>
+</div>
+<div>
+<h4 class="text-white font-bold text-sm mb-4">Quick Links</h4>
+<ul class="text-xs font-label space-y-2">
+<li class="hover:text-primary transition-colors cursor-pointer">Explore Events</li>
+<li class="hover:text-primary transition-colors cursor-pointer">Skill Sharing</li>
+<li class="hover:text-primary transition-colors cursor-pointer">Community Resources</li>
+<li class="hover:text-primary transition-colors cursor-pointer">Safety Guidelines</li>
+</ul>
+</div>
+<div>
+<h4 class="text-white font-bold text-sm mb-4">Support</h4>
+<ul class="text-xs font-label space-y-2">
+<li class="hover:text-primary transition-colors cursor-pointer">Help Center</li>
+<li class="hover:text-primary transition-colors cursor-pointer">Contact Us</li>
+<li class="hover:text-primary transition-colors cursor-pointer">Community Guidelines</li>
+<li class="hover:text-primary transition-colors cursor-pointer">Trust &amp; Safety</li>
+</ul>
+</div>
+<div>
+<h4 class="text-white font-bold text-sm mb-4">Legal</h4>
+<ul class="text-xs font-label space-y-2">
+<li class="hover:text-primary transition-colors cursor-pointer">Privacy Policy</li>
+<li class="hover:text-primary transition-colors cursor-pointer">Terms of Service</li>
+<li class="hover:text-primary transition-colors cursor-pointer">Cookie Policy</li>
+</ul>
+</div>
+</div>
+<div class="max-w-7xl mx-auto pt-8 mt-8 border-t border-stone-800 text-[10px] font-label text-center md:text-left">
+                © 2024 CommunityCollab. Built for the Kinetic Hearth.
+            </div>
+</footer>
+</main>
+</body></html>

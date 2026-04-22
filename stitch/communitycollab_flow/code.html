@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CommunityCollab | Kinetic Hearth</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary": "#ffffff",
+              "surface-container-low": "#fff2e2",
+              "surface-bright": "#fff8f3",
+              "primary-fixed-dim": "#ffb59f",
+              "on-tertiary-container": "#4f2000",
+              "on-surface-variant": "#3c4948",
+              "secondary": "#006a67",
+              "primary-fixed": "#ffdbd1",
+              "on-secondary-container": "#00716d",
+              "error-container": "#ffdad6",
+              "primary-container": "#ff602e",
+              "on-secondary-fixed": "#00201f",
+              "error": "#ba1a1a",
+              "primary": "#af3000",
+              "surface": "#fff8f3",
+              "on-surface": "#271902",
+              "on-primary-container": "#5a1400",
+              "on-secondary": "#ffffff",
+              "secondary-fixed": "#7bf6f0",
+              "on-error": "#ffffff",
+              "secondary-fixed-dim": "#5bd9d3",
+              "inverse-primary": "#ffb59f",
+              "inverse-surface": "#3e2e12",
+              "surface-container-high": "#ffe4bf",
+              "tertiary": "#904c21",
+              "on-primary-fixed": "#3a0a00",
+              "background": "#fff8f3",
+              "surface-container-highest": "#fadfb7",
+              "surface-tint": "#af3000",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#00504d",
+              "on-tertiary-fixed": "#331200",
+              "on-primary-fixed-variant": "#862300",
+              "on-tertiary-fixed-variant": "#73350b",
+              "outline": "#6c7a78",
+              "tertiary-container": "#d28151",
+              "secondary-container": "#7bf6f0",
+              "inverse-on-surface": "#ffeed9",
+              "surface-dim": "#f1d6af",
+              "surface-container": "#ffebd1",
+              "outline-variant": "#bcc9c8",
+              "tertiary-fixed-dim": "#ffb68e",
+              "surface-variant": "#fadfb7",
+              "on-background": "#271902",
+              "surface-container-lowest": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "tertiary-fixed": "#ffdbca"
+            },
+            fontFamily: {
+              "headline": ["Plus Jakarta Sans"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-nav {
+            background: rgba(255, 248, 243, 0.8);
+            backdrop-filter: blur(12px);
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #af3000 0%, #ff602e 100%);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface antialiased">
+<!-- TopAppBar from JSON -->
+<nav class="fixed top-0 w-full z-50 bg-[#fff8f3]/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(39,25,2,0.06)]">
+<div class="flex justify-between items-center px-6 py-3 w-full max-w-7xl mx-auto">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold text-[#af3000] tracking-tighter">CommunityCollab</span>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-[#af3000] font-bold border-b-4 border-[#af3000] py-1" href="#">Home</a>
+<a class="text-[#3c4948] hover:bg-[#ffebd1] transition-colors px-3 py-1 rounded-lg" href="#">Explore</a>
+<a class="text-[#3c4948] hover:bg-[#ffebd1] transition-colors px-3 py-1 rounded-lg" href="#">Skill Exchange</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden sm:flex items-center bg-[#fff2e2] px-4 py-2 rounded-full">
+<span class="material-symbols-outlined text-[#3c4948] text-sm mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-48 font-label" placeholder="Search community..." type="text"/>
+</div>
+<div class="flex items-center gap-3">
+<button class="material-symbols-outlined p-2 text-[#3c4948] hover:bg-[#ffebd1] rounded-full transition-all active:scale-95">notifications</button>
+<button class="material-symbols-outlined p-2 text-[#3c4948] hover:bg-[#ffebd1] rounded-full transition-all active:scale-95">chat</button>
+<div class="relative">
+<img alt="User profile avatar with teal verified badge" class="w-10 h-10 rounded-full object-cover" data-alt="Close up portrait of a smiling young man in a modern office with warm natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAw_KX7EizepPSx6zLZsrTmmpBm3XLOPP-g1nyBVOGX4DonB6JTlUQZMTRzci_th3VGfgfr4wpAGQlQO8ESwvf4psvzt_nGewHhlhejM-wJpBgUiOshPNvxw9EIwMDMs5kGJtBFjv-hh3Qpv-54EFn67SK1n_V3lPqhQyeytk3vP8OkfDSQ3ULjR4tLlTE5mPzRBKg3awBF1qFtJly1mTqS0-468aSvzpLnBS5OsIaf70ILL3zRub5VbW6MqFDvGGbMhk40JrgZBsI"/>
+<div class="absolute -bottom-1 -right-1 bg-secondary text-white rounded-full p-0.5 border-2 border-surface">
+<span class="material-symbols-outlined text-[10px] block" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+<!-- Main Canvas -->
+<main class="pt-20">
+<!-- Hero Section: Editorial Asymmetry -->
+<section class="relative px-6 py-20 lg:py-32 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12">
+<div class="lg:w-1/2 z-10">
+<span class="font-label text-primary font-bold tracking-widest uppercase text-xs mb-4 block">Kinetic Hearth Collaboration</span>
+<h1 class="text-5xl lg:text-7xl font-headline font-extrabold text-on-surface tracking-tight leading-[1.1] mb-6">
+                    Collaborate. <br/>
+                    Share. Thrive <br/>
+<span class="text-primary italic">Together.</span>
+</h1>
+<p class="text-lg text-on-surface-variant max-w-lg mb-10 leading-relaxed">
+                    Your all-in-one platform for community events, resource sharing, and skill exchange. Built for the modern collective.
+                </p>
+<div class="flex flex-wrap gap-4">
+<button class="primary-gradient text-on-primary px-8 py-4 rounded-xl font-bold shadow-lg hover:shadow-primary/20 transition-all active:scale-95">
+                        Get Started
+                    </button>
+<button class="border-2 border-secondary text-secondary px-8 py-4 rounded-xl font-bold hover:bg-secondary/5 transition-all active:scale-95">
+                        Explore Community
+                    </button>
+</div>
+</div>
+<div class="lg:w-1/2 relative">
+<div class="relative rounded-[2rem] overflow-hidden aspect-[4/5] shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-700">
+<img alt="Community gathering" class="w-full h-full object-cover" data-alt="Group of diverse friends laughing and sharing food at an outdoor wooden table during a sunlit afternoon garden party" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDtlU8YYOHx1JWXBO5s5plhXFICjOZMiAp89taz4J8Qv7TFCN0A2tQo1dVFS3SF2MYj398r7WdBDRws4MIxs9CdYMnwzvMoUurN-7WiPSVNT-9QIzE4Iu0CmZ4brra6xubqjzr2AhvJehMKdU_rbgzLA_BGiaoR6H-MvQ4hc9ryteQv1RekZaj0uDDjhX7NaEozkKAZbmSVY2kwW0PLg67agiWdst2-pFXSLfv2wFNPL1rv7WqdMXnqvG75m78aUH8DB2jqcJrKBQ"/>
+</div>
+<!-- Layered Decorative Card -->
+<div class="absolute -bottom-10 -left-10 bg-surface-container-highest p-6 rounded-2xl shadow-xl max-w-xs -rotate-3 hover:rotate-0 transition-transform duration-500">
+<div class="flex items-center gap-4 mb-4">
+<div class="bg-secondary p-3 rounded-full text-on-secondary">
+<span class="material-symbols-outlined">volunteer_activism</span>
+</div>
+<div>
+<p class="font-headline font-bold text-on-surface">Skill Match Found!</p>
+<p class="text-xs text-on-surface-variant">Gardening for Web Design</p>
+</div>
+</div>
+<div class="w-full h-1 bg-outline-variant rounded-full overflow-hidden">
+<div class="w-3/4 h-full bg-tertiary"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Bar: Tonal Layering -->
+<section class="bg-surface-container-low py-12">
+<div class="max-w-7xl mx-auto px-6">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+<div class="text-center group">
+<div class="text-4xl font-headline font-extrabold text-primary mb-1">2,400+</div>
+<div class="font-label text-xs uppercase tracking-widest text-on-surface-variant font-semibold">Members</div>
+</div>
+<div class="text-center group">
+<div class="text-4xl font-headline font-extrabold text-secondary mb-1">580</div>
+<div class="font-label text-xs uppercase tracking-widest text-on-surface-variant font-semibold">Events</div>
+</div>
+<div class="text-center group">
+<div class="text-4xl font-headline font-extrabold text-tertiary mb-1">1,200</div>
+<div class="font-label text-xs uppercase tracking-widest text-on-surface-variant font-semibold">Skills Shared</div>
+</div>
+<div class="text-center group">
+<div class="text-4xl font-headline font-extrabold text-on-surface mb-1">900</div>
+<div class="font-label text-xs uppercase tracking-widest text-on-surface-variant font-semibold">Resources</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Feature Highlights: Bento-ish Grid -->
+<section class="py-24 px-6 max-w-7xl mx-auto">
+<div class="mb-16">
+<h2 class="text-4xl font-headline font-extrabold mb-4">Community Essentials</h2>
+<div class="w-24 h-1.5 bg-primary rounded-full"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="bg-surface-container p-8 rounded-2xl flex flex-col h-full hover:translate-y-[-8px] transition-transform duration-300">
+<div class="bg-white/50 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 shadow-sm">
+<span class="material-symbols-outlined text-primary text-4xl">calendar_month</span>
+</div>
+<h3 class="text-2xl font-headline font-bold mb-4">Group Activities &amp; Events</h3>
+<p class="text-on-surface-variant leading-relaxed mb-8 flex-grow">
+                        From weekend hikes to local workshops, find your tribe and make memories that matter.
+                    </p>
+<a class="inline-flex items-center text-primary font-bold group" href="#">
+                        See Events 
+                        <span class="material-symbols-outlined ml-2 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container p-8 rounded-2xl flex flex-col h-full hover:translate-y-[-8px] transition-transform duration-300">
+<div class="bg-white/50 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 shadow-sm">
+<span class="material-symbols-outlined text-secondary text-4xl">directions_car</span>
+</div>
+<h3 class="text-2xl font-headline font-bold mb-4">Resource &amp; Ride Sharing</h3>
+<p class="text-on-surface-variant leading-relaxed mb-8 flex-grow">
+                        Reduce waste and costs by sharing tools, equipment, or even carpooling to city events.
+                    </p>
+<a class="inline-flex items-center text-secondary font-bold group" href="#">
+                        Find Resources 
+                        <span class="material-symbols-outlined ml-2 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container p-8 rounded-2xl flex flex-col h-full hover:translate-y-[-8px] transition-transform duration-300">
+<div class="bg-white/50 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 shadow-sm">
+<span class="material-symbols-outlined text-tertiary text-4xl">psychology</span>
+</div>
+<h3 class="text-2xl font-headline font-bold mb-4">Skill Exchange</h3>
+<p class="text-on-surface-variant leading-relaxed mb-8 flex-grow">
+                        Trade your expertise in coding for cooking lessons. A circular economy of knowledge.
+                    </p>
+<a class="inline-flex items-center text-tertiary font-bold group" href="#">
+                        Browse Skills 
+                        <span class="material-symbols-outlined ml-2 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+</section>
+<!-- Featured Events: Layered Image Cards -->
+<section class="py-24 bg-surface-container-low overflow-hidden">
+<div class="max-w-7xl mx-auto px-6 mb-12 flex justify-between items-end">
+<div>
+<h2 class="text-4xl font-headline font-extrabold mb-2">Happening Soon</h2>
+<p class="text-on-surface-variant">Don't miss out on these community favorites.</p>
+</div>
+<div class="flex gap-2">
+<button class="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center hover:bg-white transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center hover:bg-white transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="flex gap-8 px-6 max-w-7xl mx-auto pb-8 overflow-x-auto no-scrollbar">
+<!-- Event 1 -->
+<div class="min-w-[350px] bg-white rounded-3xl overflow-hidden shadow-sm group">
+<div class="h-64 relative overflow-hidden">
+<img alt="Urban gardening" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Lush community garden rooftop at sunset with group of people planting herbs and socializing" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlvhksjzlOzHwlg56NsPgoJ6npbyxjKVtmyBM-QxjVDsdvgDj7YXqg1sONg44RL7WtTjokLMIv60F4oEKHFTSfes6cBLqqaI5WJQjv7ZR12zK-WjjfpcCLgOJ4b-yuQRKgqEtz3yVC70VN66e1al5n7SEwnXKvgfQ331VC7HxPyyB9mZ6VwTAgqNcTGJZLEd-oKFgfut1rNdJXwKRac9bc9G0mMC9tgqut7xsW4Wivyczd_T2MjCTld3dMkIgM9Zr21iL57SdzWYs"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-bold text-on-surface shadow-sm">
+                            OCT 24
+                        </div>
+</div>
+<div class="p-6">
+<h3 class="text-xl font-headline font-bold mb-2">Rooftop Urban Gardening</h3>
+<div class="flex items-center gap-4 mb-6">
+<div class="flex -space-x-2">
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-white" data-alt="Close up portrait of a smiling young man" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCB2lV2qDai2BlZ9F5mwgU37PMuJETuk_aenhRYCqu5oooZ99pxLCVuMkvlL95PCsor2iZT1ZSIzHNwIJ8Azdi5iqiH1Mq6DKmabFbKQj1S2rW0N7DP6CkqouZ1TbcRkRo3kzYdJQYzmtSD0jrl_ltZel7YUdCFtXS2Hf5bkyAiCyFonvQg_qSfjQvSvT7dHx7e5eK4_BjpE9te2UAMOEj4eZmOyJa2SJCPviRv84KmUM1hgxr4-e5ksCccYlfXiYAL5-W0169R8NM"/>
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-white" data-alt="Portrait of a woman with red hair" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlqm07_JoUo6NbfkP52Q0-oYSOWQuF-DGh7-YSWFJJ5gs6sPxTbHoZZ9lQFBrSNadTMb_S8cPUSyo05_SkpUAMM2Au2dOCByOAjkLRqSKrqTd6WcQIa_ecjrOEpsy4mGBCiSd-Lz7PKWFN2Ec6vu8KXMT-7G14uE-Catrk_4Dr73fH7qXV44HrIJbxPygfWs35MAKJynYInkSIBFzakFmjvS_Vkd5JbxKCxyBYGbq1UHiNTPplv_GqWfUgzLRWh1UHvsWwQH9NjwA"/>
+<div class="w-8 h-8 rounded-full bg-surface-container border-2 border-white flex items-center justify-center text-[10px] font-bold">+12</div>
+</div>
+<span class="text-sm font-label text-on-surface-variant italic">15 spots left</span>
+</div>
+<button class="w-full py-3 rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all">Join Event</button>
+</div>
+</div>
+<!-- Event 2 -->
+<div class="min-w-[350px] bg-white rounded-3xl overflow-hidden shadow-sm group">
+<div class="h-64 relative overflow-hidden">
+<img alt="Tech workshop" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Group of diverse professionals collaborating on laptops in a brightly lit industrial style workspace" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-TkvaVmCdpDTxeugNGb-I62G2sXDdrX53OfJmhVVDCaCxAF4c927K_JuEH6UO1IKQoT2h3y3lsA2J9-Ig4gL46TC35PO4LbP_0kaL3BmiUK9u8FHUSyvPp11UGc7AJk-VkiwAYVcBvltIdhLQJ6r2Rt4OP4UkSRJlk7LwAHz6Xsb5EsPADlygXRiBG2mWA2NavT_iBnKXyvdrQX_B9YRCk5QXcUTADsJ5Worx3onJRklcQp19Ovr1Bt4a3NGasVWbbW4cVIUrI94"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-bold text-on-surface shadow-sm">
+                            OCT 28
+                        </div>
+</div>
+<div class="p-6">
+<h3 class="text-xl font-headline font-bold mb-2">Creative Coding Basics</h3>
+<div class="flex items-center gap-4 mb-6">
+<div class="flex -space-x-2">
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-white" data-alt="Portrait of a man wearing glasses" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmim3MNdtTUryTqRNO3Tl8dcPY-wmQaAzIbCVjDBzz-PBkE5vego1vZnPdDp_YayxVv_XvKl9vAWSB4oRidXqrkzfL0b45LqqgnPUgGuJZ_mbsYxgOdGb_KtzlYKkzdXlRaS9_Y6bRuaRgQksxzY1UL5Kcp9I9nc7Y_Roo4R4NiteKZAcG2TRXx_yemcDabR0FSe2fSRIr8JwxuXsXwZEU0b41Z9YOQZOgAIl_BYCvmYMDZJjolVjGMMu1cOS_J-ev-r2aX_Uxbsc"/>
+<div class="w-8 h-8 rounded-full bg-surface-container border-2 border-white flex items-center justify-center text-[10px] font-bold">+5</div>
+</div>
+<span class="text-sm font-label text-on-surface-variant italic">2 spots left</span>
+</div>
+<button class="w-full py-3 rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all">Join Event</button>
+</div>
+</div>
+<!-- Event 3 -->
+<div class="min-w-[350px] bg-white rounded-3xl overflow-hidden shadow-sm group">
+<div class="h-64 relative overflow-hidden">
+<img alt="Potluck dinner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Large rustic table spread with various gourmet dishes and wine at an evening outdoor dinner party" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAw4QijVGHz2t_pVuls5Ow13Vv2eAefphtYcn6KW-mUsCP6AKcd5Xt8nvxMDe85R0JZf_6Y1ZN1u8t16CeknGBUliS3JuPnUmxmMj_CYTPiucgb5Kk29mo9XJfVnIlZDOwAXpCntIMa-hysvRE15uNyoFsaKwda0OTKMAOuxLUFAvgVzanUK1HJVqqcFKJf96FmGGfeCmTPTf1QuvJCHPvSg7dT_3QGST950qM-nS9snl74XDcrV0HT6tnr8AJeHmCFRe8cPmKdKqc"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-bold text-on-surface shadow-sm">
+                            NOV 02
+                        </div>
+</div>
+<div class="p-6">
+<h3 class="text-xl font-headline font-bold mb-2">Zero-Waste Community Potluck</h3>
+<div class="flex items-center gap-4 mb-6">
+<div class="flex -space-x-2">
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-white" data-alt="Portrait of a smiling woman in casual clothing" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAG9ONzTsvBCQmBZXrfGBp0sLb3p_7Nk1UBYfXqdmrsjfqub-dP3eSPCamBnsF1q5uROGhsYtPXjQQ9ttCInkswKimg3JjhKLYGeHoC-Iw8go9le1y8ojIAYOAAcW08aB--08qunMEVbfAT68Zt20UexAMnJjPkE3_rD8REudQKE-I7vHv8DXBr8ztjZHY887WAxPy4gXrKJBRzKQOWcYJ71-FIsWVivZPpB2u_Db8IUy8mqyDIoVc_Ed247iFq3zVNlaO_IMpEzYo"/>
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-white" data-alt="Portrait of a bearded man in a professional setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcFkwTTwdHkSE9kMTY4OQDMeUta6u5mJrhpP0gAzlb2FTFg86Tw0W3-BNnrh4M5I2UgGKklVbUKwO_d6Rxo22nBHxF-pyiP_dTAwNfRN3_fX1ygk_amprigyET296uhXIUndaRVn_XHso5kD2RbvHXvOkzpNZ_Pw9i_c7jYB-24Okvb1yWDEQyK83p8js2vrryDgS5TgHJ6ZopY_fb0JeN7hjDNpvT1c7dVY5rrFOdfmU6bSI3XOO1oafxSD57XwTYeW-0RHHECZ4"/>
+<div class="w-8 h-8 rounded-full bg-surface-container border-2 border-white flex items-center justify-center text-[10px] font-bold">+28</div>
+</div>
+<span class="text-sm font-label text-on-surface-variant italic">45 people joined</span>
+</div>
+<button class="w-full py-3 rounded-xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all">Join Event</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer from JSON -->
+<footer class="bg-[#271902] text-stone-400 py-12 px-8">
+<div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
+<div class="col-span-1 md:col-span-1">
+<span class="text-[#fff8f3] font-bold text-xl block mb-4">CommunityCollab</span>
+<p class="text-xs tracking-wide leading-relaxed mb-6">
+                    Building the Kinetic Hearth where every shared skill and every shared ride creates a tighter, stronger neighborhood.
+                </p>
+<div class="flex gap-4">
+<a class="text-[#ff602e] hover:text-[#03A6A1] transition-colors" href="#"><span class="material-symbols-outlined">share</span></a>
+<a class="text-[#ff602e] hover:text-[#03A6A1] transition-colors" href="#"><span class="material-symbols-outlined">public</span></a>
+<a class="text-[#ff602e] hover:text-[#03A6A1] transition-colors" href="#"><span class="material-symbols-outlined">alternate_email</span></a>
+</div>
+</div>
+<div>
+<h4 class="text-white font-bold mb-6 text-sm">Quick Links</h4>
+<ul class="space-y-3 text-xs">
+<li><a class="hover:text-[#03A6A1] transition-colors" href="#">Privacy Policy</a></li>
+<li><a class="hover:text-[#03A6A1] transition-colors" href="#">Terms of Service</a></li>
+<li><a class="hover:text-[#03A6A1] transition-colors" href="#">Community Guidelines</a></li>
+<li><a class="hover:text-[#03A6A1] transition-colors" href="#">Contact Us</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-white font-bold mb-6 text-sm">Community</h4>
+<ul class="space-y-3 text-xs">
+<li><a class="hover:text-[#03A6A1] transition-colors" href="#">Our Story</a></li>
+<li><a class="hover:text-[#03A6A1] transition-colors" href="#">Safety Center</a></li>
+<li><a class="hover:text-[#03A6A1] transition-colors" href="#">Ambassadors</a></li>
+<li><a class="hover:text-[#03A6A1] transition-colors" href="#">Support</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-white font-bold mb-6 text-sm">Join Our Newsletter</h4>
+<p class="text-[10px] mb-4 uppercase tracking-widest font-bold">Stay updated on the hearth</p>
+<form class="flex flex-col gap-2">
+<input class="bg-stone-800 border-none rounded-lg text-xs py-3 px-4 focus:ring-1 focus:ring-primary text-white" placeholder="email@example.com" type="email"/>
+<button class="bg-primary text-white font-bold text-xs py-3 rounded-lg hover:opacity-90 transition-opacity" type="submit">Subscribe</button>
+</form>
+</div>
+</div>
+<div class="max-w-7xl mx-auto mt-12 pt-8 border-t border-stone-800 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-[10px] tracking-widest uppercase">© 2024 CommunityCollab. Built for the Kinetic Hearth.</p>
+<div class="flex gap-6 text-[10px] font-bold">
+<span class="text-[#ff602e]">SYSTEM STATUS: OPTIMAL</span>
+<span class="text-stone-500">v2.4.0</span>
+</div>
+</div>
+</footer>
+</body></html>
