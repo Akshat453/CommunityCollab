@@ -1,10 +1,10 @@
 const express = require('express')
 const router = express.Router()
-const crypto = require('crypto')
 const { protect } = require('../middleware/auth.middleware')
 const Resource = require('../models/Resource')
-const User = require('../models/User')
+const Notification = require('../models/Notification')
 const { addPoints } = require('../utils/badgeEngine')
+const { recalculateTrustScore } = require('../utils/trustEngine')
 const { notifyUser } = require('../sockets/socket')
 const { sendMail, resourceRequestEmail } = require('../utils/mailer')
 
@@ -20,13 +20,37 @@ router.get('/', async (req, res) => {
     { tags: { $regex: q, $options: 'i' } }
   ]
   const total = await Resource.countDocuments(filter)
-  const resources = await Resource.find(filter).populate('owner', 'name avatar_url verified').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(Number(limit))
+  const resources = await Resource.find(filter).populate('owner', 'name avatar_url verified trust_score trust_level').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(Number(limit))
   res.json({ success: true, data: resources, total, page: Number(page), pages: Math.ceil(total / limit) })
 })
 
 router.get('/:id', async (req, res) => {
-  const resource = await Resource.findById(req.params.id).populate('owner', 'name avatar_url verified bio').populate('requests.requester', 'name avatar_url')
+  const resource = await Resource.findById(req.params.id)
+    .populate('owner', 'name avatar_url verified bio trust_score trust_level')
+    .populate('requests.requester', 'name avatar_url')
+
   if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' })
+
+  // 48h dispute check on utr_submitted requests
+  try {
+    const now = new Date()
+    let needsSave = false
+    for (const req_ of resource.requests) {
+      if (
+        req_.status === 'utr_submitted' &&
+        req_.utr_submitted_at &&
+        (now - new Date(req_.utr_submitted_at)) > 48 * 60 * 60 * 1000
+      ) {
+        req_.status = 'disputed'
+        needsSave = true
+        recalculateTrustScore(req_.requester._id || req_.requester).catch(err => console.error('[Trust]', err.message))
+      }
+    }
+    if (needsSave) await resource.save()
+  } catch (err) {
+    console.error('[Resource GET dispute check]', err.message)
+  }
+
   res.json({ success: true, data: resource })
 })
 
@@ -59,7 +83,6 @@ router.post('/:id/request', protect, async (req, res) => {
   resource.requests.push({ requester: req.user._id, start_date: req.body.start_date, end_date: req.body.end_date, message: req.body.message })
   await resource.save()
 
-  // Send borrow request email to owner
   try {
     const emailData = resourceRequestEmail({
       ownerName: resource.owner.name,
@@ -73,7 +96,6 @@ router.post('/:id/request', protect, async (req, res) => {
     console.error('[Mail] Resource request email failed:', err.message)
   }
 
-  // Notify owner via socket
   notifyUser(resource.owner._id.toString(), 'resource:borrow_request', {
     requesterName: req.user.name,
     resourceTitle: resource.title
@@ -82,123 +104,142 @@ router.post('/:id/request', protect, async (req, res) => {
   res.json({ success: true, data: resource })
 })
 
-// ─── RAZORPAY PAYMENT ENDPOINTS ───────────────────────────
-
-router.post('/:id/create-payment-order', protect, async (req, res) => {
-  const Razorpay = require('razorpay')
-  const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
-
-  const { start_date, end_date } = req.body
-  if (!start_date || !end_date) {
-    return res.status(400).json({ success: false, message: 'Start and end date required' })
-  }
-
-  const resource = await Resource.findById(req.params.id).populate('owner', 'name email')
+// PATCH /api/v1/resources/:id/requests/:requestId/approve — owner approves request
+router.patch('/:id/requests/:requestId/approve', protect, async (req, res) => {
+  const resource = await Resource.findById(req.params.id)
   if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' })
-  if (resource.is_free) return res.status(400).json({ success: false, message: 'Resource is free — no payment needed' })
-  if (resource.status !== 'available') return res.status(400).json({ success: false, message: 'Resource is not available' })
+  if (resource.owner.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Not authorized' })
 
-  const days = Math.max(1, Math.ceil(
-    (new Date(end_date) - new Date(start_date)) / (1000 * 60 * 60 * 24)
-  ))
-  const totalAmount = resource.price_per_day * days
-  const amountInPaise = Math.round(totalAmount * 100)
+  const request = resource.requests.id(req.params.requestId)
+  if (!request) return res.status(404).json({ success: false, message: 'Request not found' })
 
-  const order = await razorpay.orders.create({
-    amount: amountInPaise,
-    currency: 'INR',
-    receipt: `resource_${resource._id}_${req.user._id}`,
-    notes: {
-      resource_id: resource._id.toString(),
-      resource_title: resource.title,
-      requester_id: req.user._id.toString(),
-      owner_id: resource.owner._id.toString(),
-      days: days.toString(),
-      start_date,
-      end_date
-    }
-  })
-
-  res.json({
-    success: true,
-    data: {
-      order_id: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      razorpay_key: process.env.RAZORPAY_KEY_ID,
-      resource_title: resource.title,
-      price_per_day: resource.price_per_day,
-      days,
-      total_amount: totalAmount,
-      owner_name: resource.owner.name
-    }
-  })
-})
-
-router.post('/:id/verify-payment', protect, async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, start_date, end_date } = req.body
-
-  const expected = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest('hex')
-
-  if (expected !== razorpay_signature) {
-    return res.status(400).json({ success: false, message: 'Payment verification failed' })
-  }
-
-  const resource = await Resource.findById(req.params.id).populate('owner', 'name email')
-  if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' })
-
-  const days = start_date && end_date
-    ? Math.max(1, Math.ceil((new Date(end_date) - new Date(start_date)) / (1000 * 60 * 60 * 24)))
-    : 1
-  const totalAmount = resource.price_per_day * days
-
-  // Create borrow request entry and mark as paid
-  resource.requests.push({
-    requester: req.user._id,
-    start_date,
-    end_date,
-    message: `Paid booking — Payment ID: ${razorpay_payment_id}`,
-    payment_status: 'paid',
-    payment_id: razorpay_payment_id
-  })
-  resource.status = 'borrowed'
+  request.status = 'approved'
+  if (req.body.owner_upi_id) request.owner_upi_id = req.body.owner_upi_id
+  if (req.body.owner_upi_name) request.owner_upi_name = req.body.owner_upi_name
+  if (!resource.is_free) resource.status = 'borrowed'
   await resource.save()
 
-  // Email borrower
-  try {
-    await sendMail({
-      to: req.user.email,
-      subject: `Booking confirmed: ${resource.title}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:24px;background:#FFE3BB;border-radius:12px">
-          <h2 style="color:#03A6A1">Booking Confirmed!</h2>
-          <p>Your payment of <strong>&#8377;${totalAmount}</strong> for <strong>${resource.title}</strong> is confirmed.</p>
-          <div style="background:#fff;border-radius:8px;padding:16px;margin:16px 0">
-            <p><strong>Owner:</strong> ${resource.owner.name}</p>
-            <p><strong>From:</strong> ${start_date}</p>
-            <p><strong>To:</strong> ${end_date}</p>
-            <p><strong>Payment ID:</strong> ${razorpay_payment_id}</p>
-          </div>
-          <p style="color:#888;font-size:12px">CommunityCollab — Collaborate. Share. Thrive.</p>
-        </div>
-      `
-    })
-  } catch (err) {
-    console.error('[Mail] Resource payment email failed:', err.message)
-  }
-
-  // Notify owner via socket
-  notifyUser(resource.owner._id.toString(), 'resource:payment_received', {
-    borrowerName: req.user.name,
-    resourceTitle: resource.title,
-    amount: totalAmount,
-    paymentId: razorpay_payment_id
+  const notif = await Notification.create({
+    recipient: request.requester,
+    type: 'resource',
+    title: 'Borrow request approved',
+    message: `Your request for "${resource.title}" has been approved.`,
+    link: `/resources/${resource._id}`
   })
+  notifyUser(request.requester.toString(), 'resource:request_approved', { notification: notif })
 
-  res.json({ success: true, message: 'Payment verified and booking confirmed', data: { payment_id: razorpay_payment_id } })
+  res.json({ success: true, data: resource })
+})
+
+// PATCH /api/v1/resources/:id/requests/:requestId/reject — owner rejects request
+router.patch('/:id/requests/:requestId/reject', protect, async (req, res) => {
+  const resource = await Resource.findById(req.params.id)
+  if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' })
+  if (resource.owner.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Not authorized' })
+
+  const request = resource.requests.id(req.params.requestId)
+  if (!request) return res.status(404).json({ success: false, message: 'Request not found' })
+
+  request.status = 'rejected'
+  await resource.save()
+
+  const notif = await Notification.create({
+    recipient: request.requester,
+    type: 'resource',
+    title: 'Borrow request declined',
+    message: `Your request for "${resource.title}" was declined.`,
+    link: `/resources/${resource._id}`
+  })
+  notifyUser(request.requester.toString(), 'resource:request_rejected', { notification: notif })
+
+  res.json({ success: true, data: resource })
+})
+
+// POST /api/v1/resources/:id/requests/:requestId/return — borrower marks item returned
+router.post('/:id/requests/:requestId/return', protect, async (req, res) => {
+  const resource = await Resource.findById(req.params.id)
+  if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' })
+
+  const request = resource.requests.id(req.params.requestId)
+  if (!request) return res.status(404).json({ success: false, message: 'Request not found' })
+  if (request.requester.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Only borrower can mark as returned' })
+  if (request.status !== 'approved') return res.status(400).json({ success: false, message: 'Request must be approved first' })
+
+  request.status = 'returned'
+  if (resource.is_free) resource.status = 'available'
+  await resource.save()
+
+  const notif = await Notification.create({
+    recipient: resource.owner,
+    type: 'resource',
+    title: 'Item returned',
+    message: `${req.user.name} has returned "${resource.title}".`,
+    link: `/resources/${resource._id}`
+  })
+  notifyUser(resource.owner.toString(), 'resource:item_returned', { notification: notif })
+
+  recalculateTrustScore(req.user._id).catch(err => console.error('[Trust]', err.message))
+
+  res.json({ success: true, data: resource })
+})
+
+// POST /api/v1/resources/:id/requests/:requestId/submit-utr — borrower submits UTR
+router.post('/:id/requests/:requestId/submit-utr', protect, async (req, res) => {
+  const resource = await Resource.findById(req.params.id)
+  if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' })
+
+  const request = resource.requests.id(req.params.requestId)
+  if (!request) return res.status(404).json({ success: false, message: 'Request not found' })
+  if (request.requester.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Only borrower can submit UTR' })
+  if (request.status !== 'returned') return res.status(400).json({ success: false, message: 'Return the item before paying' })
+
+  const { utr_number } = req.body
+  if (!utr_number) return res.status(400).json({ success: false, message: 'UTR number is required' })
+
+  request.utr_number = utr_number
+  request.utr_submitted_at = new Date()
+  request.status = 'utr_submitted'
+  await resource.save()
+
+  const notif = await Notification.create({
+    recipient: resource.owner,
+    type: 'resource',
+    title: 'UTR submitted for payment',
+    message: `${req.user.name} submitted UTR ${utr_number} for "${resource.title}".`,
+    link: `/resources/${resource._id}`
+  })
+  notifyUser(resource.owner.toString(), 'resource:utr_submitted', { notification: notif })
+
+  res.json({ success: true, message: 'UTR submitted' })
+})
+
+// PATCH /api/v1/resources/:id/requests/:requestId/confirm-payment — owner confirms payment
+router.patch('/:id/requests/:requestId/confirm-payment', protect, async (req, res) => {
+  const resource = await Resource.findById(req.params.id)
+  if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' })
+  if (resource.owner.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Not authorized' })
+
+  const request = resource.requests.id(req.params.requestId)
+  if (!request) return res.status(404).json({ success: false, message: 'Request not found' })
+
+  request.payment_confirmed_by_owner = true
+  request.payment_confirmed_at = new Date()
+  request.status = 'payment_confirmed'
+  resource.status = 'available'
+  await resource.save()
+
+  const notif = await Notification.create({
+    recipient: request.requester,
+    type: 'resource',
+    title: 'Payment confirmed',
+    message: `Your payment for "${resource.title}" has been confirmed.`,
+    link: `/resources/${resource._id}`
+  })
+  notifyUser(request.requester.toString(), 'resource:payment_confirmed', { notification: notif })
+
+  recalculateTrustScore(request.requester).catch(err => console.error('[Trust]', err.message))
+
+  res.json({ success: true, data: resource })
 })
 
 module.exports = router

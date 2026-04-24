@@ -139,7 +139,7 @@ export default function EventDetail() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {event.participants.map((p, i) => (
                   <div key={i} className="flex items-center gap-2 bg-surface-container rounded-xl px-3 py-2">
-                    <img src={p.user?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-7 h-7 rounded-full" />
+                    <img src={p.user?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-7 h-7 rounded-full" />
                     <span className="text-xs font-medium truncate">{p.user?.name || 'User'}</span>
                   </div>
                 ))}
@@ -163,7 +163,7 @@ export default function EventDetail() {
           <div className="bg-surface-container-low rounded-3xl p-6">
             <h3 className="text-xs font-bold uppercase text-on-surface-variant tracking-wider mb-4">Hosted by</h3>
             <div className="flex items-center gap-3 mb-4">
-              <img src={event.organizer?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-12 h-12 rounded-2xl border-2 border-outline-variant/20" />
+              <img src={event.organizer?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-12 h-12 rounded-2xl border-2 border-outline-variant/20" />
               <div>
                 <p className="font-bold">{event.organizer?.name}</p>
                 {event.organizer?.verified && <span className="material-symbols-outlined text-secondary text-sm material-fill">verified</span>}

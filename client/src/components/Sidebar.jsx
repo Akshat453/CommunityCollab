@@ -18,7 +18,7 @@ export default function Sidebar() {
   return (
     <aside className="hidden md:flex h-screen w-64 fixed left-0 top-0 bg-[#fff8f3] flex-col gap-y-2 py-8 pr-4 pt-24 z-40">
       <div className="px-6 mb-8">
-        <h2 className="text-[#af3000] font-black uppercase tracking-widest text-xs">Kinetic Hearth</h2>
+        <h2 className="text-[#af3000] font-black uppercase tracking-widest text-xs">CoCo</h2>
         <p className="text-xs text-[#3c4948] font-medium">Collaborative Hub</p>
       </div>
       <nav className="flex-1 flex flex-col gap-1">
@@ -29,8 +29,8 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               className={`flex items-center gap-3 px-6 py-3 transition-all font-medium text-sm ${isActive
-                  ? 'bg-[#ffebd1] text-[#271902] rounded-r-full font-bold shadow-sm'
-                  : 'text-[#3c4948] hover:translate-x-1 hover:text-[#af3000]'
+                ? 'bg-[#ffebd1] text-[#271902] rounded-r-full font-bold shadow-sm'
+                : 'text-[#3c4948] hover:translate-x-1 hover:text-[#af3000]'
                 }`}
             >
               <span className={`material-symbols-outlined ${isActive ? 'material-fill' : ''}`}>{item.icon}</span>
@@ -39,12 +39,6 @@ export default function Sidebar() {
           )
         })}
       </nav>
-      <div className="px-4 mt-auto">
-        <Link to="/events" className="w-full py-4 px-4 primary-gradient text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform">
-          <span className="material-symbols-outlined">add_circle</span>
-          Create New Task
-        </Link>
-      </div>
     </aside>
   )
 }

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import LegalNoticeModal from '../components/LegalNoticeModal'
+import TrustBadge from '../components/TrustBadge'
 
 const typeFilters = ['all', 'tool', 'workspace', 'vehicle', 'meal', 'other']
 
 export default function Resources() {
   const navigate = useNavigate()
+  const [showLegal, setShowLegal] = useState(() => !sessionStorage.getItem('legal_noticed_resources'))
   const [resources, setResources] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeType, setActiveType] = useState('all')
@@ -48,6 +51,7 @@ export default function Resources() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {showLegal && <LegalNoticeModal pageName="resources" onDismiss={() => setShowLegal(false)} />}
       <div className="flex flex-col md:flex-row justify-between items-baseline mb-10 gap-4">
         <div>
           <h1 className="text-4xl md:text-5xl font-headline font-extrabold tracking-tighter mb-2">Resource Sharing</h1>
@@ -122,9 +126,10 @@ export default function Resources() {
               <h3 className="font-bold text-lg mb-2">{res.title}</h3>
               <p className="text-on-surface-variant text-sm line-clamp-2 mb-4">{res.description}</p>
               <div className="flex items-center justify-between pt-4 border-t border-outline-variant/10">
-                <div className="flex items-center gap-2">
-                  <img src={res.owner?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-6 h-6 rounded-full" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <img src={res.owner?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-6 h-6 rounded-full" />
                   <span className="text-xs font-medium">{res.owner?.name}</span>
+                  <TrustBadge trust_score={res.owner?.trust_score} trust_level={res.owner?.trust_level} size="sm" />
                 </div>
                 <span className={`text-sm font-bold ${res.is_free ? 'text-secondary' : 'text-primary'}`}>{res.is_free ? 'Free' : `$${res.price_per_day}/day`}</span>
               </div>

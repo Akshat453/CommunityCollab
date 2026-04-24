@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
+import TrustBadge from '../components/TrustBadge'
 
 export default function Profile() {
   const { user, refreshUser } = useAuth()
@@ -44,7 +45,7 @@ export default function Profile() {
         <div className="relative max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-end gap-6 -mt-16">
             <div className="relative p-1 bg-surface rounded-[2.5rem]">
-              <img className="w-32 h-32 md:w-40 md:h-40 rounded-[2rem] border-4 border-surface shadow-xl object-cover" src={user.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt={user.name} />
+              <img className="w-32 h-32 md:w-40 md:h-40 rounded-[2rem] border-4 border-surface shadow-xl object-cover" src={user.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt={user.name} />
               {user.verified && (
                 <div className="absolute -bottom-2 -right-2 bg-secondary text-white p-2 rounded-full border-4 border-surface shadow-lg">
                   <span className="material-symbols-outlined text-2xl material-fill">verified</span>
@@ -53,6 +54,9 @@ export default function Profile() {
             </div>
             <div className="flex-1 pb-4 text-center md:text-left">
               <h1 className="text-3xl md:text-5xl font-black text-on-surface tracking-tighter mb-2">{user.name}</h1>
+              <div className="mb-2">
+                <TrustBadge trust_score={user.trust_score} trust_level={user.trust_level} size="lg" />
+              </div>
               <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 text-on-surface-variant font-label text-sm uppercase tracking-wider">
                 {user.location?.city && (
                   <span className="flex items-center gap-1"><span className="material-symbols-outlined text-primary text-lg">location_on</span> {user.location.city}</span>

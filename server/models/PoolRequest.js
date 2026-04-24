@@ -60,7 +60,9 @@ const PoolRequestSchema = new mongoose.Schema({
     order_id_external: { type: String },
     note: { type: String },
     submitted_at: { type: Date },
-    verified_by: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+    verified_by: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    orderer_upi_id: { type: String },
+    orderer_upi_name: { type: String }
   },
   is_public: {
     type: Boolean,
@@ -89,15 +91,18 @@ const PoolRequestSchema = new mongoose.Schema({
     },
     payment_status: {
       type: String,
-      enum: ['unpaid', 'paid', 'refunded'],
+      enum: ['unpaid', 'utr_submitted', 'paid', 'disputed', 'refunded'],
       default: 'unpaid'
     },
-    payment_id: { type: String },
     delivery_confirmed: {
       type: Boolean,
       default: false
     },
-    delivery_confirmed_at: { type: Date }
+    delivery_confirmed_at: { type: Date },
+    utr_number: { type: String },
+    utr_submitted_at: { type: Date },
+    payment_confirmed_by_orderer: { type: Boolean, default: false },
+    payment_confirmed_at: { type: Date }
   }]
 }, { timestamps: true })
 

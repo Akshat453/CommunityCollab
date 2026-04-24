@@ -3,6 +3,11 @@ const router = express.Router()
 const { protect } = require('../middleware/auth.middleware')
 const Notification = require('../models/Notification')
 
+router.get('/unread-count', protect, async (req, res) => {
+  const count = await Notification.countDocuments({ recipient: req.user._id, read: false })
+  res.json({ success: true, count })
+})
+
 router.get('/', protect, async (req, res) => {
   const { page = 1, limit = 30 } = req.query
   const total = await Notification.countDocuments({ recipient: req.user._id })

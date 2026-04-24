@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import LegalNoticeModal from '../components/LegalNoticeModal'
+import TrustBadge from '../components/TrustBadge'
 
 const PLATFORM_META = {
   blinkit:  { label: 'Blinkit',  color: '#F8D000', icon: '⚡' },
@@ -28,6 +30,7 @@ const platformFilters = ['all', 'blinkit', 'swiggy', 'zomato', 'amazon', 'flipka
 export default function Pools() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const [showLegal, setShowLegal] = useState(() => !sessionStorage.getItem('legal_noticed_pools'))
   const [pools, setPools] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeType, setActiveType] = useState('all')
@@ -83,6 +86,7 @@ export default function Pools() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {showLegal && <LegalNoticeModal pageName="pools" onDismiss={() => setShowLegal(false)} />}
       <div className="flex flex-col md:flex-row justify-between items-baseline mb-10 gap-4">
         <div>
           <h1 className="text-4xl md:text-5xl font-headline font-extrabold tracking-tighter mb-2">Group Pools</h1>
@@ -226,9 +230,10 @@ export default function Pools() {
 
                 {/* Footer */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <img src={pool.creator?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-6 h-6 rounded-full" />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <img src={pool.creator?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-6 h-6 rounded-full" />
                     <span className="text-xs text-on-surface-variant">{pool.creator?.name}</span>
+                    <TrustBadge trust_score={pool.creator?.trust_score} trust_level={pool.creator?.trust_level} size="sm" />
                   </div>
                   {isCreator ? (
                     <span className="text-xs font-bold text-on-surface-variant bg-surface-container px-3 py-1 rounded-full">Your Pool</span>

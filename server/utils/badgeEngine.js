@@ -12,12 +12,30 @@ const awardBadges = async (userId, meta = {}) => {
   const user = await User.findById(userId)
   if (!user) return
   const existingIds = user.badges.map(b => b.name)
+  const newBadges = []
   for (const rule of BADGE_RULES) {
     if (!existingIds.includes(rule.name) && rule.condition(user, meta)) {
-      user.badges.push({ name: rule.name, icon: rule.icon, earned_at: new Date() })
+      const badge = { name: rule.name, icon: rule.icon, earned_at: new Date() }
+      user.badges.push(badge)
+      newBadges.push(badge)
     }
   }
   await user.save()
+
+  if (newBadges.length > 0) {
+    const Notification = require('../models/Notification')
+    const { notifyUser } = require('../sockets/socket')
+    for (const badge of newBadges) {
+      const notif = await Notification.create({
+        recipient: userId,
+        type: 'badge',
+        title: 'New badge earned!',
+        message: `You earned the "${badge.name}" ${badge.icon} badge. Keep it up!`,
+        link: '/profile'
+      })
+      notifyUser(userId.toString(), 'notification:new', { notification: notif })
+    }
+  }
 }
 
 const addPoints = async (userId, points) => {

@@ -6,7 +6,7 @@ export default function Landing() {
       {/* Hero Section */}
       <section className="relative px-6 py-20 lg:py-32 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12">
         <div className="lg:w-1/2 z-10">
-          <span className="font-label text-primary font-bold tracking-widest uppercase text-xs mb-4 block">Kinetic Hearth Collaboration</span>
+          <span className="font-label text-primary font-bold tracking-widest uppercase text-xs mb-4 block">CoCo</span>
           <h1 className="text-5xl lg:text-7xl font-headline font-extrabold text-on-surface tracking-tight leading-[1.1] mb-6">
             Collaborate. <br />
             Share. Thrive <br />

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import TrustBadge from '../components/TrustBadge'
 
 const categoryIcons = { tech: 'code', languages: 'translate', arts_music: 'palette', life_skills: 'self_improvement', fitness: 'fitness_center', academic: 'school', trades: 'construction', other: 'interests' }
 
@@ -15,11 +16,21 @@ export default function SkillDetail() {
   const [connection, setConnection] = useState(null)
   const [connecting, setConnecting] = useState(false)
 
+  // UPI states
+  const [upiId, setUpiId] = useState('')
+  const [upiName, setUpiName] = useState('')
+  const [settingUpi, setSettingUpi] = useState(false)
+  const [utrInput, setUtrInput] = useState('')
+  const [submittingUtr, setSubmittingUtr] = useState(false)
+  const [confirmingPayment, setConfirmingPayment] = useState(false)
+  const [completingSession, setCompletingSession] = useState(false)
+
   const fetchConnection = async () => {
     if (!user) return
     try {
       const { data } = await api.get(`/skills/connections?listing=${id}`)
-      setConnection(data.data || null)
+      // Fix pre-existing bug: data.data is an array, not a single object
+      setConnection(data.data?.[0] || null)
     } catch { /* no active connection */ }
   }
 
@@ -52,39 +63,52 @@ export default function SkillDetail() {
     }
   }
 
-  const handlePaySession = async () => {
+  const handleSetUpi = async () => {
+    if (!upiId.trim()) { alert('Please enter a UPI ID'); return }
+    setSettingUpi(true)
     try {
-      const { data } = await api.post(`/skills/connections/${connection._id}/create-payment-order`)
-      const options = {
-        key: data.key,
-        amount: data.amount,
-        currency: data.currency,
-        name: 'CommunityCollab',
-        description: `Skill: ${skill.skill_name}`,
-        order_id: data.order_id,
-        handler: async (response) => {
-          try {
-            await api.post(`/skills/connections/${connection._id}/verify-payment`, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            })
-            fetchConnection()
-          } catch {
-            alert('Payment verification failed. Contact support.')
-          }
-        },
-        prefill: { name: user?.name, email: user?.email },
-        theme: { color: '#03A6A1' },
-      }
-      const rzp = new window.Razorpay(options)
-      rzp.open()
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to initiate payment')
-    }
+      await api.post(`/skills/connections/${connection._id}/set-upi`, {
+        teacher_upi_id: upiId.trim(),
+        teacher_upi_name: upiName.trim() || undefined
+      })
+      setUpiId(''); setUpiName('')
+      fetchConnection()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to set UPI details') }
+    finally { setSettingUpi(false) }
+  }
+
+  const handleSubmitUtr = async () => {
+    if (!utrInput.trim()) { alert('Please enter a UTR number'); return }
+    setSubmittingUtr(true)
+    try {
+      await api.post(`/skills/connections/${connection._id}/submit-utr`, { utr_number: utrInput.trim() })
+      setUtrInput('')
+      fetchConnection()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to submit UTR') }
+    finally { setSubmittingUtr(false) }
+  }
+
+  const handleConfirmPayment = async () => {
+    setConfirmingPayment(true)
+    try {
+      await api.patch(`/skills/connections/${connection._id}/confirm-payment`)
+      fetchConnection()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to confirm payment') }
+    finally { setConfirmingPayment(false) }
+  }
+
+  const handleCompleteSession = async () => {
+    setCompletingSession(true)
+    try {
+      await api.patch(`/skills/connections/${connection._id}/complete`)
+      fetchConnection()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to mark as complete') }
+    finally { setCompletingSession(false) }
   }
 
   const isOwnListing = skill && user && (skill.user?._id || skill.user) === user._id
+  const isTeacher = connection && isOwnListing
+  const isLearner = connection && !isOwnListing
 
   if (loading) return (
     <div className="max-w-4xl mx-auto flex justify-center py-32">
@@ -103,6 +127,10 @@ export default function SkillDetail() {
 
   if (!skill) return null
 
+  // Determine completion status
+  const myComplete = isTeacher ? connection?.teacher_completed : connection?.learner_completed
+  const otherComplete = isTeacher ? connection?.learner_completed : connection?.teacher_completed
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Back */}
@@ -110,6 +138,14 @@ export default function SkillDetail() {
         <span className="material-symbols-outlined text-lg group-hover:-translate-x-1 transition-transform">arrow_back</span>
         Back to Skills
       </button>
+
+      {/* Warning Banner */}
+      <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2" style={{ background: '#FFF8E1', border: '1px solid #FFD54F' }}>
+        <span className="material-symbols-outlined text-sm" style={{ color: '#F57F17' }}>warning</span>
+        <p className="text-xs font-medium" style={{ color: '#F57F17' }}>
+          All transactions are logged. Fraudulent activity will result in account suspension and legal action.
+        </p>
+      </div>
 
       {/* Header */}
       <div className="bg-surface-container-low rounded-3xl p-8 mb-8">
@@ -165,7 +201,7 @@ export default function SkillDetail() {
                   <span className="material-symbols-outlined text-primary material-fill">payments</span>
                 </div>
                 <div>
-                  <p className="text-sm font-bold">${skill.price_per_hour}/hour</p>
+                  <p className="text-sm font-bold">₹{skill.price_per_hour}/hour</p>
                   <p className="text-xs text-on-surface-variant">Rate</p>
                 </div>
               </div>
@@ -183,6 +219,141 @@ export default function SkillDetail() {
             )}
           </div>
 
+          {/* Session Completion Section */}
+          {connection && connection.status === 'accepted' && (
+            <div className="bg-surface-container-low rounded-3xl p-6">
+              <h2 className="font-bold text-lg mb-4">📋 Session Status</h2>
+              <div className="space-y-3">
+                {/* Completion progress */}
+                <div className="flex items-center gap-3">
+                  <span className={`material-symbols-outlined ${myComplete ? 'text-green-600' : 'text-on-surface-variant'}`}>
+                    {myComplete ? 'check_circle' : 'radio_button_unchecked'}
+                  </span>
+                  <span className="text-sm font-medium">You: {myComplete ? 'Marked complete ✓' : 'Not marked yet'}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`material-symbols-outlined ${otherComplete ? 'text-green-600' : 'text-on-surface-variant'}`}>
+                    {otherComplete ? 'check_circle' : 'radio_button_unchecked'}
+                  </span>
+                  <span className="text-sm font-medium">
+                    {isTeacher ? 'Learner' : 'Teacher'}: {otherComplete ? 'Marked complete ✓' : 'Not marked yet'}
+                  </span>
+                </div>
+                {!myComplete && (
+                  <button onClick={handleCompleteSession} disabled={completingSession}
+                    className="px-6 py-2.5 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50 mt-2" style={{ background: '#03A6A1' }}>
+                    {completingSession ? 'Marking...' : '✅ Mark Session Complete'}
+                  </button>
+                )}
+                {myComplete && !otherComplete && (
+                  <p className="text-xs text-on-surface-variant mt-1">Waiting for the other party to confirm completion...</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Session completed */}
+          {connection && connection.status === 'completed' && (
+            <div className="rounded-3xl p-6 text-center" style={{ background: '#E8F5E9' }}>
+              <span className="material-symbols-outlined text-4xl" style={{ color: '#2E7D32' }}>celebration</span>
+              <h3 className="font-bold text-lg mt-2" style={{ color: '#2E7D32' }}>Session Completed!</h3>
+              <p className="text-sm text-on-surface-variant mt-1">Both parties marked this session as complete.</p>
+            </div>
+          )}
+
+          {/* UPI Payment Section — for paid connections */}
+          {connection && connection.exchange_type === 'paid' && (connection.status === 'accepted' || connection.status === 'completed') && (
+            <div className="bg-surface-container-low rounded-3xl p-6">
+              <h2 className="font-bold text-lg mb-4">💳 Payment</h2>
+
+              {/* Teacher: Set UPI details */}
+              {isTeacher && !connection.teacher_upi_id && (
+                <div className="space-y-3">
+                  <p className="text-sm text-on-surface-variant mb-2">Share your UPI details so the learner can pay you.</p>
+                  <input type="text" placeholder="Your UPI ID (e.g. name@paytm)" value={upiId} onChange={e => setUpiId(e.target.value)}
+                    className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                  <input type="text" placeholder="Name on UPI account" value={upiName} onChange={e => setUpiName(e.target.value)}
+                    className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                  <button onClick={handleSetUpi} disabled={settingUpi}
+                    className="px-6 py-2.5 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50" style={{ background: '#03A6A1' }}>
+                    {settingUpi ? 'Saving...' : 'Set UPI Details'}
+                  </button>
+                </div>
+              )}
+
+              {/* Teacher: UPI set, show status */}
+              {isTeacher && connection.teacher_upi_id && (
+                <div className="space-y-3">
+                  <div className="rounded-xl p-3" style={{ background: '#E8F5E9' }}>
+                    <p className="text-xs font-bold mb-1" style={{ color: '#2E7D32' }}>Your UPI ID shared</p>
+                    <p className="text-sm font-bold">{connection.teacher_upi_id}</p>
+                  </div>
+                  {connection.payment_status === 'utr_submitted' && (
+                    <div className="space-y-2">
+                      <div className="rounded-xl p-3" style={{ background: '#E3F2FD' }}>
+                        <p className="text-xs font-bold" style={{ color: '#1565C0' }}>UTR received from learner</p>
+                        <p className="text-sm font-bold mt-1">{connection.utr_number}</p>
+                      </div>
+                      <button onClick={handleConfirmPayment} disabled={confirmingPayment}
+                        className="w-full py-2.5 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50" style={{ background: '#03A6A1' }}>
+                        {confirmingPayment ? 'Confirming...' : '✓ Confirm Payment Received'}
+                      </button>
+                    </div>
+                  )}
+                  {connection.payment_status === 'paid' && (
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#E8F5E9' }}>
+                      <span className="material-symbols-outlined text-3xl" style={{ color: '#2E7D32' }}>check_circle</span>
+                      <p className="font-bold text-sm mt-1" style={{ color: '#2E7D32' }}>Payment Confirmed ✓</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Learner: Waiting for UPI */}
+              {isLearner && !connection.teacher_upi_id && (
+                <div className="rounded-xl p-4 text-center" style={{ background: '#FFF8E1' }}>
+                  <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#F57F17' }}>hourglass_top</span>
+                  <p className="font-bold text-sm" style={{ color: '#F57F17' }}>Waiting for teacher to share UPI details</p>
+                </div>
+              )}
+
+              {/* Learner: UPI available, submit UTR */}
+              {isLearner && connection.teacher_upi_id && connection.payment_status === 'unpaid' && (
+                <div className="space-y-3">
+                  <div className="rounded-xl p-4" style={{ background: '#E3F2FD' }}>
+                    <p className="text-xs font-bold mb-1" style={{ color: '#1565C0' }}>Pay the teacher via UPI</p>
+                    <p className="text-lg font-bold" style={{ color: '#1565C0' }}>{connection.teacher_upi_id}</p>
+                    {connection.teacher_upi_name && <p className="text-xs text-on-surface-variant">Name: {connection.teacher_upi_name}</p>}
+                    <p className="text-sm font-bold mt-2" style={{ color: '#FF4F0F' }}>Amount: ₹{skill.price_per_hour}</p>
+                  </div>
+                  <input type="text" placeholder="Enter UTR / Transaction Reference Number" value={utrInput} onChange={e => setUtrInput(e.target.value)}
+                    className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                  <button onClick={handleSubmitUtr} disabled={submittingUtr}
+                    className="px-6 py-2.5 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50" style={{ background: '#03A6A1' }}>
+                    {submittingUtr ? 'Submitting...' : 'Submit Payment'}
+                  </button>
+                </div>
+              )}
+
+              {/* Learner: UTR submitted */}
+              {isLearner && connection.payment_status === 'utr_submitted' && (
+                <div className="rounded-xl p-4 text-center" style={{ background: '#E3F2FD' }}>
+                  <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#1565C0' }}>hourglass_top</span>
+                  <p className="font-bold text-sm" style={{ color: '#1565C0' }}>Awaiting payment confirmation from teacher</p>
+                  <p className="text-xs text-on-surface-variant mt-1">UTR: {connection.utr_number}</p>
+                </div>
+              )}
+
+              {/* Learner: Payment confirmed */}
+              {isLearner && connection.payment_status === 'paid' && (
+                <div className="rounded-xl p-4 text-center" style={{ background: '#E8F5E9' }}>
+                  <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#2E7D32' }}>check_circle</span>
+                  <p className="font-bold text-sm" style={{ color: '#2E7D32' }}>Payment Confirmed ✓</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tags */}
           {skill.tags?.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -199,13 +370,14 @@ export default function SkillDetail() {
           <div className="bg-surface-container-low rounded-3xl p-6">
             <h3 className="text-xs font-bold uppercase text-on-surface-variant tracking-wider mb-4">{skill.listing_type === 'offering' ? 'Instructor' : 'Learner'}</h3>
             <div className="flex items-center gap-3 mb-3">
-              <img src={skill.user?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-12 h-12 rounded-2xl border-2 border-outline-variant/20" />
+              <img src={skill.user?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-12 h-12 rounded-2xl border-2 border-outline-variant/20" />
               <div>
                 <p className="font-bold">{skill.user?.name}</p>
                 {skill.user?.verified && <span className="material-symbols-outlined text-secondary text-sm material-fill">verified</span>}
               </div>
             </div>
-            {skill.user?.bio && <p className="text-xs text-on-surface-variant line-clamp-3 mb-3">{skill.user.bio}</p>}
+            <TrustBadge trust_score={skill.user?.trust_score} trust_level={skill.user?.trust_level} size="md" />
+            {skill.user?.bio && <p className="text-xs text-on-surface-variant line-clamp-3 mb-3 mt-3">{skill.user.bio}</p>}
             {skill.user?.rating && (
               <div className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-yellow-500 text-sm material-fill">star</span>
@@ -234,20 +406,16 @@ export default function SkillDetail() {
                 {connection.status === 'pending' && (
                   <div className="text-center py-3 rounded-xl bg-tertiary-fixed text-tertiary font-bold text-sm">Request Sent — Pending</div>
                 )}
-                {connection.status === 'accepted' && connection.exchange_type === 'paid' && connection.payment_status !== 'paid' && (
-                  <div className="rounded-2xl p-4" style={{ background: '#FFE3BB' }}>
-                    <h3 className="font-bold text-sm mb-1" style={{ color: '#03A6A1' }}>Session Rate</h3>
-                    <p className="text-2xl font-extrabold mb-0.5" style={{ color: '#FF4F0F' }}>₹{skill.price_per_hour}/hr</p>
-                    <p className="text-xs text-on-surface-variant mb-3">Connection accepted — pay to confirm session</p>
-                    <button onClick={handlePaySession} className="w-full py-3 rounded-xl font-bold text-white text-sm active:scale-95 transition-transform" style={{ background: '#FF4F0F' }}>
-                      Pay ₹{skill.price_per_hour} Now
-                    </button>
-                  </div>
-                )}
-                {connection.status === 'accepted' && (connection.exchange_type !== 'paid' || connection.payment_status === 'paid') && (
+                {connection.status === 'accepted' && (
                   <div className="flex items-center gap-2 justify-center py-3 rounded-xl font-bold text-sm" style={{ color: '#03A6A1', border: '2px solid #03A6A1' }}>
                     <span className="material-symbols-outlined text-base">check_circle</span>
-                    {connection.payment_status === 'paid' ? 'Payment confirmed' : 'Connected'}
+                    Connected
+                  </div>
+                )}
+                {connection.status === 'completed' && (
+                  <div className="flex items-center gap-2 justify-center py-3 rounded-xl font-bold text-sm" style={{ color: '#2E7D32', background: '#E8F5E9' }}>
+                    <span className="material-symbols-outlined text-base">check_circle</span>
+                    Session Completed
                   </div>
                 )}
                 {connection.status === 'rejected' && (

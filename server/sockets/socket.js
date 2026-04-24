@@ -94,6 +94,29 @@ const initSocket = (server) => {
           .populate('sender', 'name avatar_url verified')
         console.log(`[Socket] Message in ${room} from ${socket.userName}: ${content.substring(0, 40)}`)
         io.to(room).emit('new_message', populated)
+
+        // DM notification for absent recipient
+        if (room.startsWith('dm:')) {
+          try {
+            const parts = room.replace('dm:', '').split('_')
+            const recipientId = parts[0] === socket.userId ? parts[1] : parts[0]
+            const roomOccupants = roomUsers[room]
+            const recipientActive = roomOccupants && [...roomOccupants.values()].some(u => u.userId === recipientId)
+            if (!recipientActive) {
+              const Notification = require('../models/Notification')
+              const notif = await Notification.create({
+                recipient: recipientId,
+                type: 'message',
+                title: `New message from ${socket.userName}`,
+                message: content.trim().substring(0, 100),
+                link: '/messages'
+              })
+              notifyUser(recipientId, 'notification:new', { notification: notif })
+            }
+          } catch (err) {
+            console.error('[Socket] DM notification error:', err.message)
+          }
+        }
       } catch (err) {
         console.error('[Socket] send_message error:', err.message)
         socket.emit('message_error', { error: 'Failed to send message' })

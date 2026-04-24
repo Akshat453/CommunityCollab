@@ -1,10 +1,11 @@
 const express = require('express')
 const router = express.Router()
-const crypto = require('crypto')
 const { protect } = require('../middleware/auth.middleware')
 const SkillListing = require('../models/SkillListing')
 const SkillConnection = require('../models/SkillConnection')
+const Notification = require('../models/Notification')
 const { addPoints } = require('../utils/badgeEngine')
+const { recalculateTrustScore } = require('../utils/trustEngine')
 const { notifyUser } = require('../sockets/socket')
 const { sendMail, skillConnectionEmail } = require('../utils/mailer')
 
@@ -21,14 +22,14 @@ router.get('/', async (req, res) => {
     { tags: { $regex: q, $options: 'i' } }
   ]
   const total = await SkillListing.countDocuments(filter)
-  const skills = await SkillListing.find(filter).populate('user', 'name avatar_url verified rating').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(Number(limit))
+  const skills = await SkillListing.find(filter).populate('user', 'name avatar_url verified rating trust_score trust_level').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(Number(limit))
   res.json({ success: true, data: skills, total, page: Number(page), pages: Math.ceil(total / limit) })
 })
 
 router.get('/mutual-matches', protect, async (req, res) => {
   const myListings = await SkillListing.find({ user: req.user._id, listing_type: 'offering', status: 'active' })
   const mySkills = myListings.map(l => l.skill_name)
-  const matches = await SkillListing.find({ listing_type: 'seeking', skill_name: { $in: mySkills }, user: { $ne: req.user._id }, status: 'active' }).populate('user', 'name avatar_url verified rating')
+  const matches = await SkillListing.find({ listing_type: 'seeking', skill_name: { $in: mySkills }, user: { $ne: req.user._id }, status: 'active' }).populate('user', 'name avatar_url verified rating trust_score trust_level')
   res.json({ success: true, data: matches })
 })
 
@@ -39,14 +40,14 @@ router.get('/connections', protect, async (req, res) => {
   if (listing) filter.listing = listing
   const connections = await SkillConnection.find(filter)
     .populate('listing')
-    .populate('learner', 'name avatar_url')
-    .populate('teacher', 'name avatar_url')
+    .populate('learner', 'name avatar_url trust_score trust_level')
+    .populate('teacher', 'name avatar_url trust_score trust_level')
     .sort({ createdAt: -1 })
   res.json({ success: true, data: connections })
 })
 
 router.get('/:id', async (req, res) => {
-  const skill = await SkillListing.findById(req.params.id).populate('user', 'name avatar_url verified rating bio skills location')
+  const skill = await SkillListing.findById(req.params.id).populate('user', 'name avatar_url verified rating bio skills location trust_score trust_level')
   if (!skill) return res.status(404).json({ success: false, message: 'Skill listing not found' })
   res.json({ success: true, data: skill })
 })
@@ -84,7 +85,6 @@ router.post('/:id/connect', protect, async (req, res) => {
     return res.status(400).json({ success: false, message: 'Cannot connect to your own listing' })
   }
 
-  // Check if connection already exists
   const existing = await SkillConnection.findOne({ listing: listing._id, learner: req.user._id })
   if (existing) return res.status(400).json({ success: false, message: 'Connection request already sent' })
 
@@ -96,14 +96,12 @@ router.post('/:id/connect', protect, async (req, res) => {
     message: req.body.message || ''
   })
 
-  // Notify teacher via socket
   notifyUser(listing.user._id.toString(), 'skill:connection_request', {
     learnerName: req.user.name,
     skillName: listing.skill_name,
     connectionId: connection._id
   })
 
-  // Send email to listing owner
   try {
     const emailData = skillConnectionEmail({
       userName: listing.user.name,
@@ -132,7 +130,6 @@ router.patch('/connections/:id/accept', protect, async (req, res) => {
   connection.status = 'accepted'
   await connection.save()
 
-  // Notify learner via socket
   notifyUser(connection.learner._id.toString(), 'skill:connection_accepted', {
     teacherName: req.user.name,
     skillName: connection.listing.skill_name,
@@ -140,7 +137,6 @@ router.patch('/connections/:id/accept', protect, async (req, res) => {
     exchangeType: connection.exchange_type
   })
 
-  // Send accepted email to learner
   try {
     const emailData = skillConnectionEmail({
       userName: connection.learner.name,
@@ -159,136 +155,151 @@ router.patch('/connections/:id/accept', protect, async (req, res) => {
 // PATCH /api/v1/skills/connections/:id/reject — teacher rejects
 router.patch('/connections/:id/reject', protect, async (req, res) => {
   const connection = await SkillConnection.findById(req.params.id)
+    .populate('listing', 'skill_name')
   if (!connection) return res.status(404).json({ success: false, message: 'Connection not found' })
   if (connection.teacher.toString() !== req.user._id.toString()) {
     return res.status(403).json({ success: false, message: 'Only the teacher can reject' })
   }
   connection.status = 'rejected'
   await connection.save()
+
+  const notif = await Notification.create({
+    recipient: connection.learner,
+    type: 'skill',
+    title: 'Connection request declined',
+    message: `Your connection request for "${connection.listing.skill_name}" was declined.`,
+    link: `/skills/${connection.listing._id}`
+  })
+  notifyUser(connection.learner.toString(), 'skill:connection_rejected', { notification: notif, connectionId: connection._id })
+
   res.json({ success: true, data: connection })
 })
 
-// ─── SKILL PAYMENT ENDPOINTS ──────────────────────────────
-
-router.post('/connections/:id/create-payment-order', protect, async (req, res) => {
-  const Razorpay = require('razorpay')
-  const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
-
+// PATCH /api/v1/skills/connections/:id/complete — teacher or learner marks session complete
+router.patch('/connections/:id/complete', protect, async (req, res) => {
   const connection = await SkillConnection.findById(req.params.id)
-    .populate({ path: 'listing', model: 'SkillListing' })
-    .populate('teacher', 'name email')
-    .populate('learner', 'name email')
-
+    .populate('listing', 'skill_name')
   if (!connection) return res.status(404).json({ success: false, message: 'Connection not found' })
-  if (connection.learner._id.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ success: false, message: 'Only the learner can initiate payment' })
-  }
-  if (connection.exchange_type !== 'paid') {
-    return res.status(400).json({ success: false, message: 'This connection is not a paid session' })
-  }
-  if (connection.status !== 'accepted') {
-    return res.status(400).json({ success: false, message: 'Teacher has not accepted yet' })
-  }
-  if (connection.payment_status === 'paid') {
-    return res.status(400).json({ success: false, message: 'Already paid' })
+  if (connection.status !== 'accepted') return res.status(400).json({ success: false, message: 'Session must be accepted first' })
+
+  const isLearner = connection.learner.toString() === req.user._id.toString()
+  const isTeacher = connection.teacher.toString() === req.user._id.toString()
+  if (!isLearner && !isTeacher) return res.status(403).json({ success: false, message: 'Not authorized' })
+
+  if (isLearner) connection.learner_completed = true
+  if (isTeacher) connection.teacher_completed = true
+
+  if (connection.learner_completed && connection.teacher_completed) {
+    connection.status = 'completed'
+    await connection.save()
+
+    await addPoints(connection.learner, 10)
+    await addPoints(connection.teacher, 10)
+
+    const [learnerNotif, teacherNotif] = await Promise.all([
+      Notification.create({
+        recipient: connection.learner,
+        type: 'skill',
+        title: 'Session completed',
+        message: `Your skill session for "${connection.listing.skill_name}" is complete!`,
+        link: `/skills/${connection.listing._id}`
+      }),
+      Notification.create({
+        recipient: connection.teacher,
+        type: 'skill',
+        title: 'Session completed',
+        message: `Your skill session for "${connection.listing.skill_name}" is complete!`,
+        link: `/skills/${connection.listing._id}`
+      })
+    ])
+    notifyUser(connection.learner.toString(), 'skill:session_completed', { notification: learnerNotif })
+    notifyUser(connection.teacher.toString(), 'skill:session_completed', { notification: teacherNotif })
+
+    recalculateTrustScore(connection.learner).catch(err => console.error('[Trust]', err.message))
+    recalculateTrustScore(connection.teacher).catch(err => console.error('[Trust]', err.message))
+  } else {
+    await connection.save()
   }
 
-  const amountInPaise = Math.round(connection.listing.price_per_hour * 100)
-
-  const order = await razorpay.orders.create({
-    amount: amountInPaise,
-    currency: 'INR',
-    receipt: `skill_${connection._id}_${req.user._id}`,
-    notes: {
-      connection_id: connection._id.toString(),
-      skill_name: connection.listing.skill_name,
-      learner_id: connection.learner._id.toString(),
-      teacher_id: connection.teacher._id.toString()
-    }
-  })
-
-  res.json({
-    success: true,
-    data: {
-      order_id: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      razorpay_key: process.env.RAZORPAY_KEY_ID,
-      skill_name: connection.listing.skill_name,
-      price_per_hour: connection.listing.price_per_hour,
-      teacher_name: connection.teacher.name
-    }
-  })
+  res.json({ success: true, data: connection, message: connection.status === 'completed' ? 'Session completed!' : 'Marked as complete — waiting for other party' })
 })
 
-router.post('/connections/:id/verify-payment', protect, async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body
-
-  const expected = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest('hex')
-
-  if (expected !== razorpay_signature) {
-    return res.status(400).json({ success: false, message: 'Payment verification failed' })
+// POST /api/v1/skills/connections/:id/set-upi — teacher sets their UPI details
+router.post('/connections/:id/set-upi', protect, async (req, res) => {
+  const connection = await SkillConnection.findById(req.params.id)
+  if (!connection) return res.status(404).json({ success: false, message: 'Connection not found' })
+  if (connection.teacher.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ success: false, message: 'Only the teacher can set UPI details' })
   }
 
-  const connection = await SkillConnection.findById(req.params.id)
-    .populate({ path: 'listing', model: 'SkillListing' })
-    .populate('teacher', 'name email')
+  const { teacher_upi_id, teacher_upi_name } = req.body
+  if (!teacher_upi_id) return res.status(400).json({ success: false, message: 'UPI ID is required' })
 
-  if (!connection) return res.status(404).json({ success: false, message: 'Connection not found' })
-
-  connection.payment_status = 'paid'
-  connection.payment_id = razorpay_payment_id
+  connection.teacher_upi_id = teacher_upi_id
+  connection.teacher_upi_name = teacher_upi_name || ''
   await connection.save()
 
-  // Award points to teacher
-  await addPoints(connection.teacher._id, 20)
+  res.json({ success: true, data: connection, message: 'UPI details saved' })
+})
 
-  // Emails
-  try {
-    await sendMail({
-      to: req.user.email,
-      subject: `Payment confirmed — ${connection.listing.skill_name}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:24px;background:#FFE3BB;border-radius:12px">
-          <h2 style="color:#03A6A1">Session Payment Confirmed!</h2>
-          <p>Your payment of <strong>&#8377;${connection.listing.price_per_hour}</strong> for
-          <strong>${connection.listing.skill_name}</strong> with
-          <strong>${connection.teacher.name}</strong> is confirmed.</p>
-          <p><strong>Payment ID:</strong> ${razorpay_payment_id}</p>
-          <p>Reach out to your teacher to schedule the session.</p>
-          <p style="color:#888;font-size:12px">CommunityCollab — Collaborate. Share. Thrive.</p>
-        </div>
-      `
-    })
-    await sendMail({
-      to: connection.teacher.email,
-      subject: `Payment received for your skill: ${connection.listing.skill_name}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:24px;background:#FFE3BB;border-radius:12px">
-          <h2 style="color:#03A6A1">You received a payment!</h2>
-          <p><strong>${req.user.name}</strong> has paid <strong>&#8377;${connection.listing.price_per_hour}</strong>
-          for a session of <strong>${connection.listing.skill_name}</strong>.</p>
-          <p><strong>Payment ID:</strong> ${razorpay_payment_id}</p>
-          <p style="color:#888;font-size:12px">CommunityCollab — Collaborate. Share. Thrive.</p>
-        </div>
-      `
-    })
-  } catch (err) {
-    console.error('[Mail] Skill payment email failed:', err.message)
+// POST /api/v1/skills/connections/:id/submit-utr — learner submits UTR
+router.post('/connections/:id/submit-utr', protect, async (req, res) => {
+  const connection = await SkillConnection.findById(req.params.id)
+    .populate('listing', 'skill_name')
+  if (!connection) return res.status(404).json({ success: false, message: 'Connection not found' })
+  if (connection.learner.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ success: false, message: 'Only the learner can submit UTR' })
+  }
+  if (connection.status !== 'completed') return res.status(400).json({ success: false, message: 'Complete the session before paying' })
+
+  const { utr_number } = req.body
+  if (!utr_number) return res.status(400).json({ success: false, message: 'UTR number is required' })
+
+  connection.utr_number = utr_number
+  connection.utr_submitted_at = new Date()
+  connection.payment_status = 'utr_submitted'
+  await connection.save()
+
+  const notif = await Notification.create({
+    recipient: connection.teacher,
+    type: 'skill',
+    title: 'UTR submitted for payment',
+    message: `${req.user.name} submitted UTR ${utr_number} for "${connection.listing.skill_name}".`,
+    link: `/skills/${connection.listing._id}`
+  })
+  notifyUser(connection.teacher.toString(), 'skill:utr_submitted', { notification: notif })
+
+  res.json({ success: true, message: 'UTR submitted' })
+})
+
+// PATCH /api/v1/skills/connections/:id/confirm-payment — teacher confirms payment
+router.patch('/connections/:id/confirm-payment', protect, async (req, res) => {
+  const connection = await SkillConnection.findById(req.params.id)
+    .populate('listing', 'skill_name price_per_hour')
+  if (!connection) return res.status(404).json({ success: false, message: 'Connection not found' })
+  if (connection.teacher.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ success: false, message: 'Only the teacher can confirm payment' })
   }
 
-  // Notify teacher via socket
-  notifyUser(connection.teacher._id.toString(), 'skill:payment_received', {
-    learnerName: req.user.name,
-    skillName: connection.listing.skill_name,
-    amount: connection.listing.price_per_hour,
-    paymentId: razorpay_payment_id
-  })
+  connection.payment_confirmed_by_teacher = true
+  connection.payment_confirmed_at = new Date()
+  connection.payment_status = 'paid'
+  await connection.save()
 
-  res.json({ success: true, message: 'Skill payment verified', data: { payment_id: razorpay_payment_id } })
+  await addPoints(connection.teacher, 20)
+
+  const notif = await Notification.create({
+    recipient: connection.learner,
+    type: 'skill',
+    title: 'Payment confirmed',
+    message: `Your payment for "${connection.listing.skill_name}" has been confirmed.`,
+    link: `/skills/${connection.listing._id}`
+  })
+  notifyUser(connection.learner.toString(), 'skill:payment_confirmed', { notification: notif })
+
+  recalculateTrustScore(connection.learner).catch(err => console.error('[Trust]', err.message))
+
+  res.json({ success: true, message: 'Payment confirmed' })
 })
 
 module.exports = router

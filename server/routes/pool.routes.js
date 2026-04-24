@@ -3,8 +3,10 @@ const router = express.Router()
 const { protect } = require('../middleware/auth.middleware')
 const PoolRequest = require('../models/PoolRequest')
 const PoolItem = require('../models/PoolItem')
+const Notification = require('../models/Notification')
 const User = require('../models/User')
 const { addPoints } = require('../utils/badgeEngine')
+const { recalculateTrustScore } = require('../utils/trustEngine')
 const { notifyUser } = require('../sockets/socket')
 const { sendMail, poolJoinEmailToJoiner, poolJoinEmailToOwner } = require('../utils/mailer')
 const multer = require('multer')
@@ -88,7 +90,7 @@ router.get('/', async (req, res) => {
 
   const total = await PoolRequest.countDocuments(filter)
   const pools = await PoolRequest.find(filter)
-    .populate('creator', 'name avatar_url verified')
+    .populate('creator', 'name avatar_url verified trust_score trust_level')
     .populate('designated_orderer', 'name avatar_url')
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
@@ -125,12 +127,32 @@ router.post('/fetch-meta', protect, async (req, res) => {
 // GET /api/v1/pools/:id — pool detail with items
 router.get('/:id', async (req, res) => {
   const pool = await PoolRequest.findById(req.params.id)
-    .populate('creator', 'name avatar_url verified community_points')
+    .populate('creator', 'name avatar_url verified community_points trust_score trust_level')
     .populate('designated_orderer', 'name avatar_url')
-    .populate('participants.user', 'name avatar_url verified')
+    .populate('participants.user', 'name avatar_url verified trust_score trust_level')
     .populate('order_proof.verified_by', 'name avatar_url')
 
   if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
+
+  // Dispute check: participants with utr_submitted >48h ago get flagged
+  try {
+    const now = new Date()
+    let needsSave = false
+    for (const participant of pool.participants) {
+      if (
+        participant.payment_status === 'utr_submitted' &&
+        participant.utr_submitted_at &&
+        (now - new Date(participant.utr_submitted_at)) > 48 * 60 * 60 * 1000
+      ) {
+        participant.payment_status = 'disputed'
+        needsSave = true
+        recalculateTrustScore(participant.user._id || participant.user).catch(err => console.error('[Trust]', err.message))
+      }
+    }
+    if (needsSave) await pool.save()
+  } catch (err) {
+    console.error('[Pool GET dispute check]', err.message)
+  }
 
   const items = await PoolItem.find({ pool: pool._id })
     .populate('added_by', 'name avatar_url verified')
@@ -284,6 +306,20 @@ router.post('/:id/leave', protect, async (req, res) => {
   await PoolItem.deleteMany({ pool: pool._id, added_by: req.user._id })
   await pool.save()
 
+  // Notify creator
+  await Notification.create({
+    recipient: pool.creator,
+    type: 'pool',
+    title: 'Participant left your pool',
+    message: `${req.user.name} has left "${pool.title}".`,
+    link: `/pools/${pool._id}`
+  })
+  notifyUser(pool.creator.toString(), 'pool:participant_left', {
+    poolId: pool._id,
+    poolTitle: pool.title,
+    userName: req.user.name
+  })
+
   res.json({ success: true, message: 'Left the pool and your items have been removed' })
 })
 
@@ -304,17 +340,28 @@ router.patch('/:id', protect, async (req, res) => {
 // DELETE /api/v1/pools/:id — cancel pool (creator only)
 router.delete('/:id', protect, async (req, res) => {
   const pool = await PoolRequest.findById(req.params.id)
+    .populate('participants.user', 'name')
+
   if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
   if (!isPoolCreator(pool, req.user._id)) return res.status(403).json({ success: false, message: 'Only the creator can cancel this pool' })
 
   pool.status = 'cancelled'
   await pool.save()
 
-  pool.participants.forEach(p => {
-    if (p.user.toString() !== req.user._id.toString()) {
-      notifyUser(p.user.toString(), 'pool:cancelled', { poolId: pool._id, poolTitle: pool.title })
-    }
-  })
+  const activeParticipants = pool.participants.filter(p => p.status !== 'cancelled' && p.user.toString() !== req.user._id.toString())
+
+  if (activeParticipants.length > 0) {
+    await Notification.insertMany(activeParticipants.map(p => ({
+      recipient: p.user._id || p.user,
+      type: 'pool',
+      title: 'Pool was cancelled',
+      message: `"${pool.title}" has been cancelled by the creator.`,
+      link: '/pools'
+    })))
+    activeParticipants.forEach(p => {
+      notifyUser((p.user._id || p.user).toString(), 'pool:cancelled', { poolId: pool._id, poolTitle: pool.title })
+    })
+  }
 
   res.json({ success: true, message: 'Pool cancelled' })
 })
@@ -385,12 +432,10 @@ router.post('/:id/items', protect, async (req, res) => {
   if (!product_link) return res.status(400).json({ success: false, message: 'Product link is required' })
   if (!quantity || quantity < 1) return res.status(400).json({ success: false, message: 'Quantity must be at least 1' })
 
-  // Validate URL format
   try { new URL(product_link) } catch {
     return res.status(400).json({ success: false, message: 'Invalid product URL' })
   }
 
-  // Auto-fetch product metadata if name not provided
   let resolvedName = product_name
   let resolvedImage = ''
   if (!product_name) {
@@ -506,7 +551,7 @@ router.post('/:id/submit-proof', protect, upload.single('screenshot'), async (re
     return res.status(400).json({ success: false, message: 'Pool must be in ordering status' })
   }
 
-  const { order_url, order_id_external, note } = req.body
+  const { order_url, order_id_external, note, orderer_upi_id, orderer_upi_name } = req.body
   const screenshot_url = req.file ? `/uploads/pool-proofs/${req.file.filename}` : null
 
   if (!screenshot_url && !order_url && !order_id_external) {
@@ -519,7 +564,9 @@ router.post('/:id/submit-proof', protect, upload.single('screenshot'), async (re
     order_id_external: order_id_external || null,
     note: note || null,
     submitted_at: new Date(),
-    verified_by: []
+    verified_by: [],
+    orderer_upi_id: orderer_upi_id || null,
+    orderer_upi_name: orderer_upi_name || null
   }
   pool.status = 'ordered'
 
@@ -629,6 +676,66 @@ router.post('/:id/confirm-delivery', protect, async (req, res) => {
       total: active.length
     }
   })
+})
+
+// POST /api/v1/pools/:id/submit-utr — participant submits UTR after delivery confirmed
+router.post('/:id/submit-utr', protect, async (req, res) => {
+  const pool = await PoolRequest.findById(req.params.id)
+  if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
+
+  const participant = pool.participants.find(p => p.user.toString() === req.user._id.toString() && p.status !== 'cancelled')
+  if (!participant) return res.status(403).json({ success: false, message: 'You are not a participant' })
+  if (!participant.delivery_confirmed) return res.status(400).json({ success: false, message: 'Confirm delivery before submitting payment' })
+
+  const { utr_number } = req.body
+  if (!utr_number) return res.status(400).json({ success: false, message: 'UTR number is required' })
+
+  participant.utr_number = utr_number
+  participant.utr_submitted_at = new Date()
+  participant.payment_status = 'utr_submitted'
+  await pool.save()
+
+  const ordererId = (pool.designated_orderer || pool.creator).toString()
+  const notif = await Notification.create({
+    recipient: ordererId,
+    type: 'pool',
+    title: 'UTR submitted for payment',
+    message: `${req.user.name} submitted UTR ${utr_number} for "${pool.title}". Please confirm receipt.`,
+    link: `/pools/${pool._id}`
+  })
+  notifyUser(ordererId, 'pool:utr_submitted', { notification: notif, poolId: pool._id, poolTitle: pool.title, participantName: req.user.name, utrNumber: utr_number })
+
+  res.json({ success: true, message: 'UTR submitted successfully' })
+})
+
+// PATCH /api/v1/pools/:id/confirm-payment/:participantUserId — orderer confirms payment received
+router.patch('/:id/confirm-payment/:participantUserId', protect, async (req, res) => {
+  const pool = await PoolRequest.findById(req.params.id)
+  if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
+
+  const isOrderer = (pool.designated_orderer?.toString() === req.user._id.toString()) || isPoolCreator(pool, req.user._id)
+  if (!isOrderer) return res.status(403).json({ success: false, message: 'Only the orderer can confirm payment' })
+
+  const participant = pool.participants.find(p => p.user.toString() === req.params.participantUserId && p.status !== 'cancelled')
+  if (!participant) return res.status(404).json({ success: false, message: 'Participant not found' })
+
+  participant.payment_confirmed_by_orderer = true
+  participant.payment_confirmed_at = new Date()
+  participant.payment_status = 'paid'
+  await pool.save()
+
+  const notif = await Notification.create({
+    recipient: req.params.participantUserId,
+    type: 'pool',
+    title: 'Payment confirmed',
+    message: `Your payment for "${pool.title}" has been confirmed by the orderer.`,
+    link: `/pools/${pool._id}`
+  })
+  notifyUser(req.params.participantUserId, 'pool:payment_confirmed', { notification: notif, poolId: pool._id, poolTitle: pool.title })
+
+  recalculateTrustScore(req.params.participantUserId).catch(err => console.error('[Trust]', err.message))
+
+  res.json({ success: true, message: 'Payment confirmed' })
 })
 
 // GET /api/v1/pools/:id/order-summary

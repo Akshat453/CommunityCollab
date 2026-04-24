@@ -149,7 +149,7 @@ export default function Events() {
                   <p className="text-on-surface-variant text-sm line-clamp-2 mb-4">{event.description}</p>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <img src={event.organizer?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-7 h-7 rounded-full border border-outline-variant/20" />
+                      <img src={event.organizer?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-7 h-7 rounded-full border border-outline-variant/20" />
                       <span className="text-xs font-medium">{event.organizer?.name}</span>
                     </div>
                     <span className="text-xs font-label text-on-surface-variant">{event.registered_count}/{event.max_volunteers || '∞'}</span>

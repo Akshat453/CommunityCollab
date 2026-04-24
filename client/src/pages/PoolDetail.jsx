@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import TrustBadge from '../components/TrustBadge'
 
 const PLATFORM_META = {
   blinkit:  { label: 'Blinkit',  color: '#F8D000', icon: '⚡' },
@@ -18,6 +19,14 @@ const STATUS_STEPS = ['open', 'ordering', 'ordered', 'completed']
 const STATUS_LABELS = { open: 'Open', ordering: 'Ordering', ordered: 'Ordered', completed: 'Completed', cancelled: 'Cancelled' }
 const ITEM_STATUS_COLORS = {
   pending: '#FFA673', ordered: '#03A6A1', out_of_stock: '#ba1a1a', substituted: '#2874F0', delivered: '#006a67'
+}
+
+const PAYMENT_STATUS_STYLES = {
+  unpaid: { bg: '#FFF8E1', color: '#F57F17', label: 'Payment Pending' },
+  utr_submitted: { bg: '#E3F2FD', color: '#1565C0', label: 'UTR Submitted — Awaiting Confirmation' },
+  paid: { bg: '#E8F5E9', color: '#2E7D32', label: 'Payment Confirmed ✓' },
+  disputed: { bg: '#FFEBEE', color: '#C62828', label: 'Payment Dispute Flagged' },
+  refunded: { bg: '#F3E5F5', color: '#6A1B9A', label: 'Refunded' },
 }
 
 export default function PoolDetail() {
@@ -52,7 +61,14 @@ export default function PoolDetail() {
   const [proofOrderUrl, setProofOrderUrl] = useState('')
   const [proofOrderId, setProofOrderId] = useState('')
   const [proofNote, setProofNote] = useState('')
+  const [proofUpiId, setProofUpiId] = useState('')
+  const [proofUpiName, setProofUpiName] = useState('')
   const [submittingProof, setSubmittingProof] = useState(false)
+
+  // UPI payment
+  const [utrInput, setUtrInput] = useState('')
+  const [submittingUtr, setSubmittingUtr] = useState(false)
+  const [confirmingPayment, setConfirmingPayment] = useState(null)
 
   const fetchPool = useCallback(async () => {
     setLoading(true)
@@ -165,11 +181,13 @@ export default function PoolDetail() {
       if (proofOrderUrl) formData.append('order_url', proofOrderUrl)
       if (proofOrderId) formData.append('order_id_external', proofOrderId)
       if (proofNote) formData.append('note', proofNote)
+      if (proofUpiId) formData.append('orderer_upi_id', proofUpiId)
+      if (proofUpiName) formData.append('orderer_upi_name', proofUpiName)
 
       await api.post(`/pools/${id}/submit-proof`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      setProofFile(null); setProofOrderUrl(''); setProofOrderId(''); setProofNote('')
+      setProofFile(null); setProofOrderUrl(''); setProofOrderId(''); setProofNote(''); setProofUpiId(''); setProofUpiName('')
       fetchPool()
     } catch (err) { alert(err.response?.data?.message || 'Failed to submit proof') }
     finally { setSubmittingProof(false) }
@@ -194,6 +212,26 @@ export default function PoolDetail() {
       await api.patch(`/pools/${id}/designate-orderer`, { orderer_id: ordererId })
       fetchPool()
     } catch (err) { alert(err.response?.data?.message || 'Failed') }
+  }
+
+  const handleSubmitUtr = async () => {
+    if (!utrInput.trim()) { alert('Please enter a UTR number'); return }
+    setSubmittingUtr(true)
+    try {
+      await api.post(`/pools/${id}/submit-utr`, { utr_number: utrInput.trim() })
+      setUtrInput('')
+      fetchPool()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to submit UTR') }
+    finally { setSubmittingUtr(false) }
+  }
+
+  const handleConfirmPayment = async (participantUserId) => {
+    setConfirmingPayment(participantUserId)
+    try {
+      await api.patch(`/pools/${id}/confirm-payment/${participantUserId}`)
+      fetchPool()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to confirm payment') }
+    finally { setConfirmingPayment(null) }
   }
 
   if (loading) return (
@@ -237,6 +275,14 @@ export default function PoolDetail() {
         <span className="material-symbols-outlined text-lg group-hover:-translate-x-1 transition-transform">arrow_back</span>
         Back to Pools
       </button>
+
+      {/* Warning Banner */}
+      <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2" style={{ background: '#FFF8E1', border: '1px solid #FFD54F' }}>
+        <span className="material-symbols-outlined text-sm" style={{ color: '#F57F17' }}>warning</span>
+        <p className="text-xs font-medium" style={{ color: '#F57F17' }}>
+          All transactions are logged. Fraudulent activity will result in account suspension and legal action.
+        </p>
+      </div>
 
       {/* Header */}
       <div className="bg-surface-container-low rounded-3xl p-8 mb-6 relative overflow-hidden">
@@ -369,14 +415,37 @@ export default function PoolDetail() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {pool.participants.filter(p => p.status !== 'cancelled').map((p, i) => {
                       const isDesignatedOrderer = (pool.designated_orderer?._id || pool.designated_orderer) === (p.user?._id || p.user)
+                      const pStatus = PAYMENT_STATUS_STYLES[p.payment_status]
                       return (
-                        <div key={i} className="flex items-center gap-2 bg-surface-container rounded-xl px-3 py-2 relative">
-                          <img src={p.user?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-7 h-7 rounded-full" />
-                          <div className="min-w-0 flex-1">
-                            <span className="text-xs font-medium truncate block">{p.user?.name || 'User'}</span>
-                            {isDesignatedOrderer && <span className="text-[9px] font-bold uppercase" style={{ color: platformMeta.color }}>Orderer</span>}
+                        <div key={i} className="flex flex-col gap-2 bg-surface-container rounded-xl px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <img src={p.user?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-7 h-7 rounded-full" />
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs font-medium truncate block">{p.user?.name || 'User'}</span>
+                              {isDesignatedOrderer && <span className="text-[9px] font-bold uppercase" style={{ color: platformMeta.color }}>Orderer</span>}
+                            </div>
+                            <TrustBadge trust_score={p.user?.trust_score} trust_level={p.user?.trust_level} size="sm" />
                           </div>
-                          {p.delivery_confirmed && <span className="text-xs" title="Delivery confirmed">✅</span>}
+                          {p.delivery_confirmed && <span className="text-[10px]" title="Delivery confirmed">✅ Delivered</span>}
+                          {/* Orderer: Confirm payment for UTR-submitted participants */}
+                          {isOrderer && p.payment_status === 'utr_submitted' && (
+                            <div className="mt-1 space-y-1">
+                              <p className="text-[10px] text-on-surface-variant">UTR: <strong>{p.utr_number}</strong></p>
+                              <button
+                                onClick={() => handleConfirmPayment(p.user?._id || p.user)}
+                                disabled={confirmingPayment === (p.user?._id || p.user)}
+                                className="w-full py-1.5 rounded-lg text-[10px] font-bold text-white active:scale-95 transition-transform disabled:opacity-50"
+                                style={{ background: '#03A6A1' }}
+                              >
+                                {confirmingPayment === (p.user?._id || p.user) ? 'Confirming...' : '✓ Confirm Payment'}
+                              </button>
+                            </div>
+                          )}
+                          {p.payment_status && p.payment_status !== 'unpaid' && p.payment_status !== 'utr_submitted' && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: pStatus?.bg, color: pStatus?.color }}>
+                              {pStatus?.label}
+                            </span>
+                          )}
                         </div>
                       )
                     })}
@@ -446,7 +515,7 @@ export default function PoolDetail() {
                   <div key={group.user._id} className="bg-surface-container-low rounded-3xl p-6">
                     {/* User header */}
                     <div className="flex items-center gap-3 mb-4 pb-3 border-b border-outline-variant/15">
-                      <img src={group.user.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-8 h-8 rounded-full" />
+                      <img src={group.user.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-8 h-8 rounded-full" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm">{group.user.name}</span>
@@ -581,6 +650,12 @@ export default function PoolDetail() {
                         className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
                       <input type="text" placeholder="Order ID from platform" value={proofOrderId} onChange={e => setProofOrderId(e.target.value)}
                         className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                      <div className="grid grid-cols-2 gap-3">
+                        <input type="text" placeholder="Your UPI ID (e.g. user@paytm)" value={proofUpiId} onChange={e => setProofUpiId(e.target.value)}
+                          className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                        <input type="text" placeholder="UPI Name (on account)" value={proofUpiName} onChange={e => setProofUpiName(e.target.value)}
+                          className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                      </div>
                       <textarea placeholder="Note to participants (optional)" value={proofNote} onChange={e => setProofNote(e.target.value)} rows="2"
                         className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none" />
                       <button onClick={handleSubmitProof} disabled={submittingProof}
@@ -624,6 +699,15 @@ export default function PoolDetail() {
                     <p className="text-sm"><strong>Note:</strong> {pool.order_proof.note}</p>
                   )}
 
+                  {/* UPI Info */}
+                  {pool.order_proof.orderer_upi_id && (
+                    <div className="rounded-xl p-3" style={{ background: '#FFF8E1', border: '1px solid #FFD54F' }}>
+                      <p className="text-xs font-bold mb-1" style={{ color: '#F57F17' }}>💳 Pay to UPI</p>
+                      <p className="text-sm font-bold">{pool.order_proof.orderer_upi_id}</p>
+                      {pool.order_proof.orderer_upi_name && <p className="text-xs text-on-surface-variant">Name: {pool.order_proof.orderer_upi_name}</p>}
+                    </div>
+                  )}
+
                   {/* Verified by */}
                   <div className="pt-3 border-t border-black/10">
                     <p className="text-sm font-bold mb-2">
@@ -647,6 +731,48 @@ export default function PoolDetail() {
 
                   {myParticipantData?.delivery_confirmed && (
                     <p className="font-bold text-sm mt-2" style={{ color: '#03A6A1' }}>✅ You confirmed delivery</p>
+                  )}
+                </div>
+              )}
+
+              {/* UPI Payment Section — for participants after delivery confirmed */}
+              {myParticipantData?.delivery_confirmed && pool.order_proof?.orderer_upi_id && (
+                <div className="bg-surface-container-low rounded-3xl p-6">
+                  <h2 className="font-bold text-lg mb-4">💳 Payment</h2>
+                  {myParticipantData.payment_status === 'unpaid' && (
+                    <div className="space-y-3">
+                      <div className="rounded-xl p-4" style={{ background: '#E3F2FD' }}>
+                        <p className="text-xs font-bold mb-1" style={{ color: '#1565C0' }}>Pay the orderer via UPI</p>
+                        <p className="text-lg font-bold" style={{ color: '#1565C0' }}>{pool.order_proof.orderer_upi_id}</p>
+                        {pool.order_proof.orderer_upi_name && <p className="text-xs text-on-surface-variant">Name: {pool.order_proof.orderer_upi_name}</p>}
+                      </div>
+                      <input type="text" placeholder="Enter UTR / Transaction Reference Number" value={utrInput} onChange={e => setUtrInput(e.target.value)}
+                        className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                      <button onClick={handleSubmitUtr} disabled={submittingUtr}
+                        className="px-6 py-2.5 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50" style={{ background: '#03A6A1' }}>
+                        {submittingUtr ? 'Submitting...' : 'Submit UTR'}
+                      </button>
+                    </div>
+                  )}
+                  {myParticipantData.payment_status === 'utr_submitted' && (
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#E3F2FD' }}>
+                      <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#1565C0' }}>hourglass_top</span>
+                      <p className="font-bold text-sm" style={{ color: '#1565C0' }}>Awaiting confirmation from orderer</p>
+                      <p className="text-xs text-on-surface-variant mt-1">UTR: {myParticipantData.utr_number}</p>
+                    </div>
+                  )}
+                  {myParticipantData.payment_status === 'paid' && (
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#E8F5E9' }}>
+                      <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#2E7D32' }}>check_circle</span>
+                      <p className="font-bold text-sm" style={{ color: '#2E7D32' }}>Payment Confirmed ✓</p>
+                    </div>
+                  )}
+                  {myParticipantData.payment_status === 'disputed' && (
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#FFEBEE' }}>
+                      <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#C62828' }}>error</span>
+                      <p className="font-bold text-sm" style={{ color: '#C62828' }}>Payment Dispute Flagged</p>
+                      <p className="text-xs text-on-surface-variant mt-1">Contact the orderer or platform admin to resolve.</p>
+                    </div>
                   )}
                 </div>
               )}
@@ -696,11 +822,14 @@ export default function PoolDetail() {
           <div className="bg-surface-container-low rounded-3xl p-6">
             <h3 className="text-xs font-bold uppercase text-on-surface-variant tracking-wider mb-4">Created by</h3>
             <div className="flex items-center gap-3">
-              <img src={pool.creator?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-12 h-12 rounded-2xl border-2 border-outline-variant/20" />
+              <img src={pool.creator?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-12 h-12 rounded-2xl border-2 border-outline-variant/20" />
               <div>
                 <p className="font-bold">{pool.creator?.name}</p>
                 {pool.creator?.verified && <span className="material-symbols-outlined text-secondary text-sm material-fill">verified</span>}
               </div>
+            </div>
+            <div className="mt-2">
+              <TrustBadge trust_score={pool.creator?.trust_score} trust_level={pool.creator?.trust_level} size="md" />
             </div>
           </div>
 

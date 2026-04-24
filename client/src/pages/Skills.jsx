@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import LegalNoticeModal from '../components/LegalNoticeModal'
+import TrustBadge from '../components/TrustBadge'
 
 const categoryFilters = ['all', 'tech', 'languages', 'arts_music', 'life_skills', 'fitness', 'academic', 'trades']
 const modeFilters = ['all', 'online', 'in_person', 'both']
@@ -8,6 +10,7 @@ const exchangeFilters = ['all', 'free', 'paid', 'barter']
 
 export default function Skills() {
   const navigate = useNavigate()
+  const [showLegal, setShowLegal] = useState(() => !sessionStorage.getItem('legal_noticed_skills'))
   const [skills, setSkills] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({ category: 'all', mode: 'all', exchange_type: 'all' })
@@ -51,6 +54,7 @@ export default function Skills() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {showLegal && <LegalNoticeModal pageName="skills" onDismiss={() => setShowLegal(false)} />}
       <div className="flex flex-col md:flex-row justify-between items-baseline mb-10 gap-4">
         <div>
           <h1 className="text-4xl md:text-5xl font-headline font-extrabold tracking-tighter mb-2">Skill Exchange</h1>
@@ -164,12 +168,13 @@ export default function Skills() {
                 <p className="text-xs text-tertiary font-medium mb-4">↔ {skill.what_i_offer_in_return}</p>
               )}
               <div className="flex items-center justify-between pt-4 border-t border-outline-variant/10">
-                <div className="flex items-center gap-2">
-                  <img src={skill.user?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-7 h-7 rounded-full" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <img src={skill.user?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-7 h-7 rounded-full" />
                   <div>
                     <span className="text-xs font-bold">{skill.user?.name}</span>
                     {skill.user?.verified && <span className="material-symbols-outlined text-secondary text-[10px] ml-1 material-fill">verified</span>}
                   </div>
+                  <TrustBadge trust_score={skill.user?.trust_score} trust_level={skill.user?.trust_level} size="sm" />
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); navigate(`/skills/${skill._id}`) }} className="text-xs text-primary font-bold bg-primary-fixed px-4 py-1.5 rounded-full hover:bg-primary hover:text-white transition-all">Connect</button>
               </div>

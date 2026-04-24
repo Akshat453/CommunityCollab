@@ -2,8 +2,10 @@ const express = require('express')
 const router = express.Router()
 const { protect } = require('../middleware/auth.middleware')
 const AssistancePost = require('../models/AssistancePost')
+const Notification = require('../models/Notification')
 const User = require('../models/User')
 const { addPoints } = require('../utils/badgeEngine')
+const { notifyUser } = require('../sockets/socket')
 const { sendMail, assistanceResponseEmail } = require('../utils/mailer')
 
 router.get('/', async (req, res) => {
@@ -41,7 +43,16 @@ router.post('/:id/respond', protect, async (req, res) => {
   await post.save()
   if (post.urgency === 'urgent') await addPoints(req.user._id, 20)
 
-  // Send response notification email to poster
+  // Notify poster
+  const notif = await Notification.create({
+    recipient: post.poster,
+    type: 'assistance',
+    title: 'New response to your post',
+    message: `${req.user.name} responded to "${post.title}".`,
+    link: `/assistance/${post._id}`
+  })
+  notifyUser(post.poster.toString(), 'assistance:new_response', { notification: notif })
+
   try {
     const poster = await User.findById(post.poster)
     if (poster?.email) {
@@ -55,6 +66,39 @@ router.post('/:id/respond', protect, async (req, res) => {
   } catch (err) {
     console.error('[Mail] Assistance response email failed:', err.message)
   }
+
+  res.json({ success: true, data: post })
+})
+
+// PATCH /api/v1/assistance/:id/responses/:responseId/accept — poster accepts a response
+router.patch('/:id/responses/:responseId/accept', protect, async (req, res) => {
+  const post = await AssistancePost.findById(req.params.id)
+  if (!post) return res.status(404).json({ success: false, message: 'Post not found' })
+  if (post.poster.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Only poster can accept responses' })
+
+  const response = post.responses.id(req.params.responseId)
+  if (!response) return res.status(404).json({ success: false, message: 'Response not found' })
+
+  response.status = 'accepted'
+  post.status = 'matched'
+
+  // Reject all other pending responses
+  post.responses.forEach(r => {
+    if (r._id.toString() !== req.params.responseId && r.status === 'pending') {
+      r.status = 'rejected'
+    }
+  })
+
+  await post.save()
+
+  const notif = await Notification.create({
+    recipient: response.responder,
+    type: 'assistance',
+    title: 'Your response was accepted',
+    message: `Your response to "${post.title}" was accepted!`,
+    link: `/assistance/${post._id}`
+  })
+  notifyUser(response.responder.toString(), 'assistance:response_accepted', { notification: notif })
 
   res.json({ success: true, data: post })
 })

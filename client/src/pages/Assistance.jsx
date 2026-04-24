@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import LegalNoticeModal from '../components/LegalNoticeModal'
+import TrustBadge from '../components/TrustBadge'
 
 const categoryFilters = ['all', 'errand', 'tutoring', 'delivery', 'transport', 'eldercare', 'petcare', 'other']
 const urgencyColors = { low: 'bg-secondary-container text-on-secondary-container', medium: 'bg-tertiary-fixed text-on-tertiary-fixed', urgent: 'bg-error-container text-on-error-container' }
 
 export default function Assistance() {
   const navigate = useNavigate()
+  const [showLegal, setShowLegal] = useState(() => !sessionStorage.getItem('legal_noticed_assistance'))
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState('all')
@@ -58,6 +61,7 @@ export default function Assistance() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {showLegal && <LegalNoticeModal pageName="assistance" onDismiss={() => setShowLegal(false)} />}
       <div className="flex flex-col md:flex-row justify-between items-baseline mb-10 gap-4">
         <div>
           <h1 className="text-4xl md:text-5xl font-headline font-extrabold tracking-tighter mb-2">Community Help</h1>
@@ -147,9 +151,10 @@ export default function Assistance() {
               <h3 className="font-bold text-lg mb-2">{post.title}</h3>
               <p className="text-on-surface-variant text-sm line-clamp-3 mb-4">{post.description}</p>
               <div className="flex items-center justify-between pt-4 border-t border-outline-variant/10">
-                <div className="flex items-center gap-2">
-                  <img src={post.poster?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-6 h-6 rounded-full" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <img src={post.poster?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-6 h-6 rounded-full" />
                   <span className="text-xs font-medium">{post.poster?.name}</span>
+                  <TrustBadge trust_score={post.poster?.trust_score} trust_level={post.poster?.trust_level} size="sm" />
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); handleRespond(post._id) }} className="text-xs font-bold text-primary bg-primary-fixed px-4 py-1.5 rounded-full hover:bg-primary hover:text-white transition-all">
                   {post.post_type === 'requesting' ? 'I Can Help' : 'Request Help'}

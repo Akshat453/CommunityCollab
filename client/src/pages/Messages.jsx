@@ -19,6 +19,7 @@ export default function Messages() {
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
   const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
   const typingTimer = useRef(null)
 
   // ─── Fetch room list ────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ export default function Messages() {
     setMessages([])
     setTypingUsers([])
     setOnlineUsers([])
+    if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = 0
     joinRoom(activeRoom)
 
     api.get(`/chat/${encodeURIComponent(activeRoom)}`)
@@ -97,7 +99,9 @@ export default function Messages() {
 
   // ─── Auto scroll ────────────────────────────────────────────────────────
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+    }
   }, [messages])
 
   // ─── User search for new DM ─────────────────────────────────────────────
@@ -198,7 +202,7 @@ export default function Messages() {
                 {searchResults.map(u => (
                   <button key={u._id} onClick={() => startDMWith(u)}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-container transition-all text-left">
-                    <img src={u.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt="" className="w-8 h-8 rounded-full" />
+                    <img src={u.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-8 h-8 rounded-full" />
                     <div>
                       <p className="text-sm font-bold">{u.name}</p>
                       <p className="text-xs text-on-surface-variant">{u.email}</p>
@@ -293,7 +297,7 @@ export default function Messages() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 p-6 overflow-y-auto hide-scrollbar space-y-4">
+            <div ref={messagesContainerRef} className="flex-1 p-6 overflow-y-auto hide-scrollbar space-y-4">
               {loadingHistory ? (
                 <div className="flex justify-center py-10">
                   <span className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
@@ -310,7 +314,7 @@ export default function Messages() {
                     <div key={msg._id || i} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                       {!isMine && (
                         <img
-                          src={msg.sender?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'}
+                          src={msg.sender?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'}
                           alt=""
                           className="w-7 h-7 rounded-full mr-2 mt-1 self-end flex-shrink-0"
                         />

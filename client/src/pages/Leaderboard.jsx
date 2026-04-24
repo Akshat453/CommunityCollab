@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
+import TrustBadge from '../components/TrustBadge'
 
 export default function Leaderboard() {
   const [leaders, setLeaders] = useState([])
@@ -44,7 +45,7 @@ export default function Leaderboard() {
               <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-lg shrink-0">
                 {i < 3 ? <span className="text-2xl">{medals[i]}</span> : <span className="text-on-surface-variant">{i + 1}</span>}
               </div>
-              <img src={user.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'} alt={user.name} className="w-12 h-12 rounded-full border-2 border-outline-variant/20 shrink-0" />
+              <img src={user.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt={user.name} className="w-12 h-12 rounded-full border-2 border-outline-variant/20 shrink-0" />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold">{user.name}</h3>
@@ -57,6 +58,7 @@ export default function Leaderboard() {
                   <span key={bi} className="text-sm" title={b.name}>{b.icon}</span>
                 ))}
               </div>
+              <TrustBadge trust_score={user.trust_score} trust_level={user.trust_level} size="sm" />
               <div className="text-right shrink-0">
                 <div className="text-xl font-black text-primary">{(user.community_points || 0).toLocaleString()}</div>
                 <div className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant">points</div>
