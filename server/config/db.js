@@ -3,10 +3,11 @@ const mongoose = require('mongoose')
 const connectDB = async () => {
   let uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/CommunityCollab'
   
-  // Fix common query string mistake: sslmode is for PostgreSQL, MongoDB uses ssl=true or tls=true
+  // Strip unsupported PostgreSQL 'sslmode' option if user accidentally included it in MongoDB URI
   if (uri.includes('sslmode=')) {
-    console.warn('[DB Warning] sslmode parameter found in MONGO_URI. Replacing sslmode with ssl=true...')
-    uri = uri.replace(/sslmode=[^&]+/, 'ssl=true')
+    console.warn('[DB Warning] Invalid parameter "sslmode" found in MONGO_URI. Removing "sslmode"...')
+    uri = uri.replace(/([?&])sslmode=[^&]*(&|$)/, (match, p1, p2) => p2 === '&' ? p1 : '')
+    uri = uri.replace(/\?$/, '')
   }
 
   try {
