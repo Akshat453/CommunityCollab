@@ -12,6 +12,14 @@ const { sendMail, poolJoinEmailToJoiner, poolJoinEmailToOwner } = require('../ut
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
+const crypto = require('crypto')
+const Razorpay = require('razorpay')
+
+// ─── RAZORPAY INIT ──────────────────────────────────────────
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+})
 
 // ─── ENSURE UPLOADS DIR EXISTS ───────────────────────────
 const proofDir = path.join(__dirname, '..', 'uploads', 'pool-proofs')
@@ -191,10 +199,11 @@ router.get('/:id', async (req, res) => {
 router.post('/', protect, async (req, res) => {
   const {
     title, description, platform, platform_custom_name, platform_base_url,
-    type, destination, scheduled_at, max_participants, is_public, tags, location
+    type, destination, scheduled_at, max_participants, is_public, tags, location,
+    carpool_details
   } = req.body
 
-  const pool = await PoolRequest.create({
+  const poolData = {
     creator: req.user._id,
     designated_orderer: req.user._id,
     title,
@@ -212,9 +221,30 @@ router.post('/', protect, async (req, res) => {
     participants: [{
       user: req.user._id,
       joined_at: new Date(),
-      status: 'confirmed'
+      status: 'confirmed',
+      seats_requested: 1
     }]
-  })
+  }
+
+  // Attach carpool details if this is a carpool pool
+  if (type === 'carpool' && carpool_details) {
+    poolData.carpool_details = {
+      origin: carpool_details.origin,
+      destination_place: carpool_details.destination_place,
+      fare_per_seat: carpool_details.fare_per_seat,
+      total_seats: carpool_details.total_seats,
+      departure_time: carpool_details.departure_time,
+      // Geo coords for map/route matching — sent as { lat, lng }
+      origin_coords: carpool_details.origin_coords || null,
+      destination_coords: carpool_details.destination_coords || null
+    }
+    // For carpools, max_participants follows total_seats if provided
+    if (carpool_details.total_seats && !max_participants) {
+      poolData.max_participants = carpool_details.total_seats
+    }
+  }
+
+  const pool = await PoolRequest.create(poolData)
 
   await addPoints(req.user._id, 15)
   res.status(201).json({ success: true, data: pool, message: 'Pool created successfully' })
@@ -236,10 +266,24 @@ router.post('/:id/join', protect, async (req, res) => {
     return res.status(400).json({ success: false, message: 'Pool is full' })
   }
 
+  const { seats_requested } = req.body
+  const seats = Number(seats_requested) || 1
+
+  // For carpools, check if enough seats remain
+  if (pool.type === 'carpool' && pool.carpool_details?.total_seats) {
+    const seatsUsed = pool.participants
+      .filter(p => p.status !== 'cancelled')
+      .reduce((sum, p) => sum + (p.seats_requested || 1), 0)
+    if (seatsUsed + seats > pool.carpool_details.total_seats) {
+      return res.status(400).json({ success: false, message: `Only ${pool.carpool_details.total_seats - seatsUsed} seat(s) remaining` })
+    }
+  }
+
   pool.participants.push({
     user: req.user._id,
     joined_at: new Date(),
-    status: 'confirmed'
+    status: 'confirmed',
+    seats_requested: seats
   })
   await pool.save()
 
@@ -783,6 +827,129 @@ router.get('/:id/order-summary', protect, async (req, res) => {
   })
 
   res.json({ success: true, data: summary })
+})
+
+// ════════════════════════════════════════════════
+//  RAZORPAY PAYMENT
+// ════════════════════════════════════════════════
+
+// POST /api/v1/pools/:id/razorpay/create-order
+// Creates a Razorpay order for a participant's share.
+// Amount = their item total (group_buy) or fare × seats (carpool)
+router.post('/:id/razorpay/create-order', protect, async (req, res) => {
+  const pool = await PoolRequest.findById(req.params.id)
+  if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
+
+  const participant = pool.participants.find(
+    p => p.user.toString() === req.user._id.toString() && p.status !== 'cancelled'
+  )
+  if (!participant) return res.status(403).json({ success: false, message: 'You are not a participant' })
+
+  if (participant.payment_status === 'paid') {
+    return res.status(400).json({ success: false, message: 'Payment already completed' })
+  }
+
+  // Calculate amount
+  let amountPaise = 0
+
+  if (pool.type === 'carpool' && pool.carpool_details?.fare_per_seat) {
+    const seats = participant.seats_requested || 1
+    amountPaise = Math.round(pool.carpool_details.fare_per_seat * seats * 100)
+  } else {
+    // For group buy: sum up this participant's items
+    const items = await PoolItem.find({ pool: pool._id, added_by: req.user._id })
+    const total = items.reduce((sum, item) => sum + (item.estimated_price || 0) * item.quantity, 0)
+    amountPaise = Math.round(total * 100)
+  }
+
+  // Allow custom amount override (e.g. if orderer set final amounts)
+  if (req.body.amount_paise) {
+    amountPaise = Number(req.body.amount_paise)
+  }
+
+  if (amountPaise < 100) {
+    return res.status(400).json({ success: false, message: 'Amount too low to process (minimum ₹1)' })
+  }
+
+  const order = await razorpay.orders.create({
+    amount: amountPaise,
+    currency: 'INR',
+    receipt: `pool_${pool._id}_user_${req.user._id}_${Date.now()}`,
+    notes: {
+      pool_id: pool._id.toString(),
+      pool_title: pool.title,
+      user_id: req.user._id.toString(),
+      user_name: req.user.name
+    }
+  })
+
+  // Store the razorpay order id on the participant record
+  participant.razorpay_order_id = order.id
+  await pool.save()
+
+  res.json({
+    success: true,
+    data: {
+      razorpay_order_id: order.id,
+      amount: amountPaise,
+      currency: 'INR',
+      key_id: process.env.RAZORPAY_KEY_ID,
+      pool_title: pool.title,
+      user_name: req.user.name,
+      user_email: req.user.email || '',
+      seats: participant.seats_requested || 1
+    }
+  })
+})
+
+// POST /api/v1/pools/:id/razorpay/verify-payment
+// Verifies Razorpay payment signature and marks participant as paid
+router.post('/:id/razorpay/verify-payment', protect, async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body
+
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    return res.status(400).json({ success: false, message: 'Missing payment verification fields' })
+  }
+
+  // Verify signature: HMAC SHA256 of "order_id|payment_id" with key_secret
+  const body = razorpay_order_id + '|' + razorpay_payment_id
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+    .update(body)
+    .digest('hex')
+
+  if (expectedSignature !== razorpay_signature) {
+    return res.status(400).json({ success: false, message: 'Payment verification failed — invalid signature' })
+  }
+
+  const pool = await PoolRequest.findById(req.params.id)
+  if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
+
+  const participant = pool.participants.find(
+    p => p.user.toString() === req.user._id.toString() && p.status !== 'cancelled'
+  )
+  if (!participant) return res.status(403).json({ success: false, message: 'Participant not found' })
+
+  participant.payment_status = 'paid'
+  participant.razorpay_payment_id = razorpay_payment_id
+  participant.payment_confirmed_by_orderer = true
+  participant.payment_confirmed_at = new Date()
+  await pool.save()
+
+  // Notify the orderer
+  const ordererId = (pool.designated_orderer || pool.creator).toString()
+  const notif = await Notification.create({
+    recipient: ordererId,
+    type: 'pool',
+    title: 'Razorpay payment received',
+    message: `${req.user.name} paid their share for "${pool.title}" via Razorpay.`,
+    link: `/pools/${pool._id}`
+  })
+  notifyUser(ordererId, 'pool:payment_confirmed', { notification: notif, poolId: pool._id, poolTitle: pool.title })
+
+  await recalculateTrustScore(req.user._id).catch(err => console.error('[Trust]', err.message))
+
+  res.json({ success: true, message: 'Payment verified and confirmed' })
 })
 
 module.exports = router

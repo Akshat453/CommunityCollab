@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import LegalNoticeModal from '../components/LegalNoticeModal'
 import TrustBadge from '../components/TrustBadge'
+import LocationPicker from '../components/LocationPicker'
+
+const NearMeMap = lazy(() => import('../components/NearMeMap'))
 
 const categoryFilters = ['all', 'errand', 'tutoring', 'delivery', 'transport', 'eldercare', 'petcare', 'other']
 const urgencyColors = { low: 'bg-secondary-container text-on-secondary-container', medium: 'bg-tertiary-fixed text-on-tertiary-fixed', urgent: 'bg-error-container text-on-error-container' }
@@ -17,7 +20,8 @@ export default function Assistance() {
   const [urgencyFilter, setUrgencyFilter] = useState('')
   const [postTypeFilter, setPostTypeFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', category: 'errand', post_type: 'requesting', urgency: 'low' })
+  const [form, setForm] = useState({ title: '', description: '', category: 'errand', post_type: 'requesting', urgency: 'low', location: {} })
+  const [viewMode, setViewMode] = useState('grid')
 
   const fetchPosts = async ({ q = '', category = '', urgency = '', post_type = '' } = {}) => {
     setLoading(true)
@@ -68,9 +72,19 @@ export default function Assistance() {
           <div className="h-1 w-24 bg-primary rounded-full"></div>
           <p className="text-on-surface-variant mt-3">Request or offer help — neighbors helping neighbors.</p>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="primary-gradient text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform flex items-center gap-2 shrink-0">
-          <span className="material-symbols-outlined text-sm">add</span> Post
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <div className="flex bg-surface-container rounded-xl p-1">
+            <button onClick={() => setViewMode('grid')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${viewMode === 'grid' ? 'bg-white shadow text-on-surface' : 'text-on-surface-variant'}`}>
+              <span className="material-symbols-outlined text-sm">grid_view</span> Grid
+            </button>
+            <button onClick={() => setViewMode('map')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${viewMode === 'map' ? 'bg-white shadow text-on-surface' : 'text-on-surface-variant'}`}>
+              <span className="material-symbols-outlined text-sm">map</span> Map
+            </button>
+          </div>
+          <button onClick={() => setShowCreate(!showCreate)} className="primary-gradient text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform flex items-center gap-2 shrink-0">
+            <span className="material-symbols-outlined text-sm">add</span> Post
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -127,6 +141,14 @@ export default function Assistance() {
               <option value="urgent">Urgent</option>
             </select>
             <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="md:col-span-2 bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-24" />
+            <div className="md:col-span-2">
+              <LocationPicker
+                label="📍 Your location (so nearby neighbours can see your post)"
+                placeholder="Search your area..."
+                value={form.location?.address || ''}
+                onChange={(loc) => setForm({ ...form, location: { address: loc.address, city: loc.city, lat: loc.lat, lng: loc.lng } })}
+              />
+            </div>
             <div className="md:col-span-2 flex gap-3">
               <button type="submit" className="primary-gradient text-white px-8 py-3 rounded-xl font-bold shadow-lg">Post</button>
               <button type="button" onClick={() => setShowCreate(false)} className="bg-surface-container text-on-surface-variant px-6 py-3 rounded-xl font-bold">Cancel</button>
@@ -135,7 +157,14 @@ export default function Assistance() {
         </div>
       )}
 
-      {loading ? (
+      {/* Map View */}
+      {viewMode === 'map' && (
+        <Suspense fallback={<div className="h-96 bg-surface-container-low rounded-3xl flex items-center justify-center"><span className="material-symbols-outlined text-primary text-4xl animate-spin">progress_activity</span></div>}>
+          <NearMeMap types="assistance" height="500px" onNavigate={(route) => navigate(route)} />
+        </Suspense>
+      )}
+
+      {viewMode === 'grid' && (loading ? (
         <div className="flex justify-center py-20"><span className="material-symbols-outlined text-primary text-5xl animate-spin">progress_activity</span></div>
       ) : posts.length === 0 ? (
         <div className="text-center py-20"><span className="material-symbols-outlined text-surface-container-highest text-8xl">volunteer_activism</span><h3 className="text-xl font-bold mt-4">No assistance posts yet</h3></div>
@@ -166,7 +195,7 @@ export default function Assistance() {
             </div>
           ))}
         </div>
-      )}
+      ))}
     </div>
   )
 }

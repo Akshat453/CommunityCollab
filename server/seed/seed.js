@@ -242,18 +242,27 @@ const seed = async () => {
 
   const pool2 = await PoolRequest.create({
     creator: priya._id,
-    type: 'custom',
+    type: 'carpool',
     platform: 'custom',
-    platform_custom_name: 'Shared Cab',
-    title: 'Carpool to NASSCOM Tech Summit',
-    description: 'Sharing a cab from Satellite area to GIFT City for the NASSCOM summit. Split fare equally.',
+    platform_custom_name: 'Shared Ride',
+    title: 'Carpool to NASSCOM Tech Summit (GIFT City)',
+    description: 'Sharing a ride from Satellite to GIFT City for the NASSCOM summit. Split fare equally.',
     destination: 'GIFT City, Gandhinagar',
     max_participants: 4,
     status: 'open',
     tags: ['carpool', 'tech', 'summit'],
     location: { city: 'Ahmedabad', lat: 23.0300, lng: 72.5800 },
+    carpool_details: {
+      origin: 'Satellite, Ahmedabad',
+      destination_place: 'GIFT City, Gandhinagar',
+      fare_per_seat: 150,
+      total_seats: 4,
+      departure_time: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      origin_coords: { lat: 23.0300, lng: 72.5100 },
+      destination_coords: { lat: 23.1600, lng: 72.6800 }
+    },
     participants: [
-      { user: priya._id, joined_at: now, status: 'confirmed', payment_status: 'unpaid', delivery_confirmed: false }
+      { user: priya._id, joined_at: now, status: 'confirmed', payment_status: 'unpaid', delivery_confirmed: false, seats_requested: 1 }
     ]
   })
 

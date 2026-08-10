@@ -13,7 +13,7 @@ const SkillListingSchema = new mongoose.Schema({
   what_i_offer_in_return: { type: String },
   availability: { type: Object },
   tags: [{ type: String }],
-  location: { city: String, lat: Number, lng: Number },
+  location: { address: String, city: String, lat: Number, lng: Number },
   status: { type: String, enum: ['active', 'paused', 'completed'], default: 'active' }
 }, { timestamps: true })
 

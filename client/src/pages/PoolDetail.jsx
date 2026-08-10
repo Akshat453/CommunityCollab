@@ -70,6 +70,24 @@ export default function PoolDetail() {
   const [submittingUtr, setSubmittingUtr] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(null)
 
+  // Carpool join
+  const [seatsRequested, setSeatsRequested] = useState(1)
+  const [showJoinModal, setShowJoinModal] = useState(false)
+
+  // Razorpay
+  const [payingRazorpay, setPayingRazorpay] = useState(false)
+
+  const loadRazorpayScript = () =>
+    new Promise((resolve) => {
+      if (document.getElementById('razorpay-script')) return resolve(true)
+      const script = document.createElement('script')
+      script.id = 'razorpay-script'
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      script.onload = () => resolve(true)
+      script.onerror = () => resolve(false)
+      document.body.appendChild(script)
+    })
+
   const fetchPool = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -88,13 +106,68 @@ export default function PoolDetail() {
 
   useEffect(() => { fetchPool() }, [fetchPool])
 
-  const handleJoin = async () => {
+  const handleJoin = async (seats = 1) => {
     setJoining(true)
     try {
-      await api.post(`/pools/${id}/join`)
+      await api.post(`/pools/${id}/join`, { seats_requested: seats })
+      setShowJoinModal(false)
       fetchPool()
     } catch (err) { alert(err.response?.data?.message || 'Failed to join') }
     finally { setJoining(false) }
+  }
+
+  const handleJoinClick = () => {
+    if (pool?.type === 'carpool') {
+      setShowJoinModal(true)
+    } else {
+      handleJoin(1)
+    }
+  }
+
+  const handleRazorpayPay = async () => {
+    setPayingRazorpay(true)
+    try {
+      const loaded = await loadRazorpayScript()
+      if (!loaded) { alert('Failed to load Razorpay. Check your internet connection.'); return }
+
+      const { data } = await api.post(`/pools/${id}/razorpay/create-order`)
+      const orderData = data.data
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'CommunityCollab',
+        description: orderData.pool_title,
+        order_id: orderData.razorpay_order_id,
+        prefill: {
+          name: orderData.user_name,
+          email: orderData.user_email
+        },
+        theme: { color: '#03A6A1' },
+        handler: async (response) => {
+          try {
+            await api.post(`/pools/${id}/razorpay/verify-payment`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+            fetchPool()
+          } catch (err) {
+            alert(err.response?.data?.message || 'Payment verification failed')
+          }
+        },
+        modal: {
+          ondismiss: () => setPayingRazorpay(false)
+        }
+      }
+
+      const rzp = new window.Razorpay(options)
+      rzp.open()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to initiate payment')
+      setPayingRazorpay(false)
+    }
   }
 
   const handleLeave = async () => {
@@ -256,16 +329,25 @@ export default function PoolDetail() {
   const isOrderer = pool.designated_orderer && ((pool.designated_orderer?._id || pool.designated_orderer) === user?._id) || isCreator
   const myParticipantData = pool.participants?.find(p => (p.user?._id || p.user) === user?._id)
   const activeParticipants = pool.active_participants || pool.participants?.filter(p => p.status !== 'cancelled').length || 0
-  const pct = (activeParticipants / pool.max_participants) * 100
-  const platformMeta = PLATFORM_META[pool.platform] || PLATFORM_META.custom
-  const platformLabel = pool.platform === 'custom' ? (pool.platform_custom_name || 'Custom') : platformMeta.label
+  const isCarpool = pool.type === 'carpool'
+  const maxCount = isCarpool ? (pool.carpool_details?.total_seats || pool.max_participants) : pool.max_participants
+  const pct = (activeParticipants / maxCount) * 100
+  const platformMeta = isCarpool ? { color: '#6366F1', icon: '🚗', label: 'Carpool' } : (PLATFORM_META[pool.platform] || PLATFORM_META.custom)
+  const platformLabel = isCarpool ? 'Carpool' : (pool.platform === 'custom' ? (pool.platform_custom_name || 'Custom') : platformMeta.label)
 
   const myItems = items.filter(i => (i.added_by?._id || i.added_by) === user?._id)
+  const mySeats = myParticipantData?.seats_requested || 1
+  const myFare = isCarpool && pool.carpool_details?.fare_per_seat ? pool.carpool_details.fare_per_seat * mySeats : 0
+
+  const seatsUsed = isCarpool
+    ? pool.participants?.filter(p => p.status !== 'cancelled').reduce((sum, p) => sum + (p.seats_requested || 1), 0)
+    : 0
+  const seatsLeft = isCarpool ? (pool.carpool_details?.total_seats || 0) - seatsUsed : 0
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'info' },
-    { id: 'items', label: `Items (${items.length})`, icon: 'shopping_cart' },
-    { id: 'order', label: 'Order', icon: 'receipt_long' },
+    ...(isCarpool ? [] : [{ id: 'items', label: `Items (${items.length})`, icon: 'shopping_cart' }]),
+    { id: 'order', label: isCarpool ? 'Ride & Pay' : 'Order', icon: isCarpool ? 'directions_car' : 'receipt_long' },
   ]
 
   return (
@@ -275,6 +357,40 @@ export default function PoolDetail() {
         <span className="material-symbols-outlined text-lg group-hover:-translate-x-1 transition-transform">arrow_back</span>
         Back to Pools
       </button>
+
+      {/* Carpool Seat Join Modal */}
+      {showJoinModal && pool?.type === 'carpool' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">
+            <h2 className="text-xl font-bold mb-2">🚗 Book Your Seat</h2>
+            <p className="text-sm text-on-surface-variant mb-6">
+              {pool.carpool_details?.fare_per_seat > 0
+                ? `Fare: ₹${pool.carpool_details.fare_per_seat} / seat · ${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left`
+                : `${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left`}
+            </p>
+            <label className="text-xs font-bold text-on-surface-variant mb-1 block">How many seats do you need?</label>
+            <input
+              type="number" min="1" max={seatsLeft} value={seatsRequested}
+              onChange={e => setSeatsRequested(Number(e.target.value))}
+              className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 outline-none mb-4"
+            />
+            {pool.carpool_details?.fare_per_seat > 0 && (
+              <div className="rounded-xl p-3 mb-4 text-center" style={{ background: '#EEF2FF' }}>
+                <p className="text-xs text-on-surface-variant">Total fare</p>
+                <p className="text-2xl font-extrabold" style={{ color: '#6366F1' }}>₹{(pool.carpool_details.fare_per_seat * seatsRequested).toFixed(0)}</p>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => handleJoin(seatsRequested)} disabled={joining || seatsRequested < 1 || seatsRequested > seatsLeft}
+                className="flex-1 py-3 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                style={{ background: '#6366F1' }}>
+                {joining ? 'Booking...' : `Book ${seatsRequested} Seat${seatsRequested > 1 ? 's' : ''}`}
+              </button>
+              <button onClick={() => setShowJoinModal(false)} className="px-5 py-3 rounded-xl font-bold bg-surface-container text-on-surface-variant">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Warning Banner */}
       <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2" style={{ background: '#FFF8E1', border: '1px solid #FFD54F' }}>
@@ -304,6 +420,19 @@ export default function PoolDetail() {
               </span>
             </div>
             <h1 className="text-3xl md:text-4xl font-headline font-extrabold tracking-tighter">{pool.title}</h1>
+            {/* Carpool route in header */}
+            {isCarpool && pool.carpool_details?.origin && (
+              <div className="flex items-center gap-2 mt-2 text-sm font-medium">
+                <span className="text-green-600">🚩 {pool.carpool_details.origin}</span>
+                <span className="material-symbols-outlined text-on-surface-variant text-base">arrow_forward</span>
+                <span className="text-red-500">🏁 {pool.carpool_details.destination_place}</span>
+              </div>
+            )}
+            {isCarpool && pool.carpool_details?.fare_per_seat > 0 && (
+              <p className="text-2xl font-extrabold mt-1" style={{ color: '#6366F1' }}>
+                ₹{pool.carpool_details.fare_per_seat}<span className="text-sm font-normal text-on-surface-variant"> / seat</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -355,13 +484,65 @@ export default function PoolDetail() {
           {/* ═══ OVERVIEW TAB ═══ */}
           {activeTab === 'overview' && (
             <>
+              {/* Carpool-specific details */}
+              {isCarpool && (
+                <div className="bg-surface-container-low rounded-3xl p-6 space-y-4">
+                  <h2 className="font-bold text-lg mb-1">🚗 Ride Details</h2>
+                  <div className="flex items-stretch gap-3">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      <div className="w-0.5 flex-1 bg-outline-variant/30"></div>
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    </div>
+                    <div className="flex flex-col justify-between gap-3 flex-1">
+                      <div>
+                        <p className="text-xs text-on-surface-variant">Origin</p>
+                        <p className="text-sm font-bold">{pool.carpool_details.origin || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-on-surface-variant">Destination</p>
+                        <p className="text-sm font-bold">{pool.carpool_details.destination_place || '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {pool.carpool_details?.departure_time && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary-fixed rounded-xl flex items-center justify-center">
+                        <span className="material-symbols-outlined text-primary material-fill">schedule</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold">{new Date(pool.carpool_details.departure_time).toLocaleString('en-IN', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="text-xs text-on-surface-variant">Departure</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl p-3 text-center" style={{ background: '#EEF2FF' }}>
+                      <p className="text-xs text-on-surface-variant">Total Seats</p>
+                      <p className="text-xl font-extrabold" style={{ color: '#6366F1' }}>{pool.carpool_details?.total_seats || '—'}</p>
+                    </div>
+                    <div className="rounded-xl p-3 text-center" style={{ background: '#EEF2FF' }}>
+                      <p className="text-xs text-on-surface-variant">Fare / Seat</p>
+                      <p className="text-xl font-extrabold" style={{ color: '#6366F1' }}>₹{pool.carpool_details?.fare_per_seat || 0}</p>
+                    </div>
+                  </div>
+                  {isJoined && (
+                    <div className="rounded-xl p-3" style={{ background: '#EEF2FF' }}>
+                      <p className="text-xs font-bold mb-1" style={{ color: '#6366F1' }}>Your Booking</p>
+                      <p className="text-sm">Seats: <strong>{mySeats}</strong> · Total Fare: <strong>₹{myFare.toFixed(0)}</strong></p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Description */}
               <div className="bg-surface-container-low rounded-3xl p-6">
                 <h2 className="font-bold text-lg mb-3">Description</h2>
                 <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap">{pool.description || 'No description provided.'}</p>
               </div>
 
-              {/* Details */}
+              {/* Details (non-carpool) */}
+              {!isCarpool && (
               <div className="bg-surface-container-low rounded-3xl p-6 space-y-4">
                 <h2 className="font-bold text-lg mb-1">Details</h2>
                 {pool.destination && (
@@ -407,11 +588,14 @@ export default function PoolDetail() {
                   </div>
                 )}
               </div>
+              )}
 
               {/* Participants */}
               {pool.participants?.length > 0 && (
                 <div className="bg-surface-container-low rounded-3xl p-6">
-                  <h2 className="font-bold text-lg mb-4">Participants ({activeParticipants}/{pool.max_participants})</h2>
+                  <h2 className="font-bold text-lg mb-4">
+                    {isCarpool ? `Passengers (${activeParticipants} riders / ${seatsUsed} seats used)` : `Participants (${activeParticipants}/${maxCount})`}
+                  </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {pool.participants.filter(p => p.status !== 'cancelled').map((p, i) => {
                       const isDesignatedOrderer = (pool.designated_orderer?._id || pool.designated_orderer) === (p.user?._id || p.user)
@@ -426,6 +610,11 @@ export default function PoolDetail() {
                             </div>
                             <TrustBadge trust_score={p.user?.trust_score} trust_level={p.user?.trust_level} size="sm" />
                           </div>
+                          {isCarpool && p.seats_requested > 0 && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#EEF2FF', color: '#6366F1' }}>
+                              💺 {p.seats_requested} seat{p.seats_requested > 1 ? 's' : ''}
+                            </span>
+                          )}
                           {p.delivery_confirmed && <span className="text-[10px]" title="Delivery confirmed">✅ Delivered</span>}
                           {/* Orderer: Confirm payment for UTR-submitted participants */}
                           {isOrderer && p.payment_status === 'utr_submitted' && (
@@ -735,25 +924,32 @@ export default function PoolDetail() {
                 </div>
               )}
 
-              {/* UPI Payment Section — for participants after delivery confirmed */}
-              {myParticipantData?.delivery_confirmed && pool.order_proof?.orderer_upi_id && (
+              {/* Payment Section — Razorpay primary, UTR fallback */}
+              {isJoined && ['ordered', 'completed'].includes(pool.status) && myParticipantData && (
                 <div className="bg-surface-container-low rounded-3xl p-6">
-                  <h2 className="font-bold text-lg mb-4">💳 Payment</h2>
-                  {myParticipantData.payment_status === 'unpaid' && (
-                    <div className="space-y-3">
-                      <div className="rounded-xl p-4" style={{ background: '#E3F2FD' }}>
-                        <p className="text-xs font-bold mb-1" style={{ color: '#1565C0' }}>Pay the orderer via UPI</p>
-                        <p className="text-lg font-bold" style={{ color: '#1565C0' }}>{pool.order_proof.orderer_upi_id}</p>
-                        {pool.order_proof.orderer_upi_name && <p className="text-xs text-on-surface-variant">Name: {pool.order_proof.orderer_upi_name}</p>}
-                      </div>
-                      <input type="text" placeholder="Enter UTR / Transaction Reference Number" value={utrInput} onChange={e => setUtrInput(e.target.value)}
-                        className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
-                      <button onClick={handleSubmitUtr} disabled={submittingUtr}
-                        className="px-6 py-2.5 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50" style={{ background: '#03A6A1' }}>
-                        {submittingUtr ? 'Submitting...' : 'Submit UTR'}
-                      </button>
+                  <h2 className="font-bold text-lg mb-2">💳 Payment</h2>
+
+                  {/* Paid state */}
+                  {myParticipantData.payment_status === 'paid' && (
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#E8F5E9' }}>
+                      <span className="material-symbols-outlined text-4xl mb-2" style={{ color: '#2E7D32' }}>check_circle</span>
+                      <p className="font-bold" style={{ color: '#2E7D32' }}>Payment Confirmed ✓</p>
+                      {myParticipantData.razorpay_payment_id && (
+                        <p className="text-xs text-on-surface-variant mt-1">Razorpay ID: {myParticipantData.razorpay_payment_id}</p>
+                      )}
                     </div>
                   )}
+
+                  {/* Disputed state */}
+                  {myParticipantData.payment_status === 'disputed' && (
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#FFEBEE' }}>
+                      <span className="material-symbols-outlined text-4xl mb-2" style={{ color: '#C62828' }}>error</span>
+                      <p className="font-bold text-sm" style={{ color: '#C62828' }}>Payment Dispute Flagged</p>
+                      <p className="text-xs text-on-surface-variant mt-1">Contact the orderer or platform admin to resolve.</p>
+                    </div>
+                  )}
+
+                  {/* UTR submitted state */}
                   {myParticipantData.payment_status === 'utr_submitted' && (
                     <div className="rounded-xl p-4 text-center" style={{ background: '#E3F2FD' }}>
                       <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#1565C0' }}>hourglass_top</span>
@@ -761,17 +957,66 @@ export default function PoolDetail() {
                       <p className="text-xs text-on-surface-variant mt-1">UTR: {myParticipantData.utr_number}</p>
                     </div>
                   )}
-                  {myParticipantData.payment_status === 'paid' && (
-                    <div className="rounded-xl p-4 text-center" style={{ background: '#E8F5E9' }}>
-                      <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#2E7D32' }}>check_circle</span>
-                      <p className="font-bold text-sm" style={{ color: '#2E7D32' }}>Payment Confirmed ✓</p>
-                    </div>
-                  )}
-                  {myParticipantData.payment_status === 'disputed' && (
-                    <div className="rounded-xl p-4 text-center" style={{ background: '#FFEBEE' }}>
-                      <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#C62828' }}>error</span>
-                      <p className="font-bold text-sm" style={{ color: '#C62828' }}>Payment Dispute Flagged</p>
-                      <p className="text-xs text-on-surface-variant mt-1">Contact the orderer or platform admin to resolve.</p>
+
+                  {/* Unpaid — Razorpay primary + UTR fallback */}
+                  {myParticipantData.payment_status === 'unpaid' && (
+                    <div className="space-y-4">
+                      {/* Amount to pay */}
+                      {(isCarpool ? myFare > 0 : totalEstimated > 0) && (
+                        <div className="rounded-xl p-4 text-center" style={{ background: '#EEF2FF' }}>
+                          <p className="text-xs text-on-surface-variant mb-1">
+                            {isCarpool ? `Your fare (${mySeats} seat${mySeats > 1 ? 's' : ''})` : 'Your estimated share'}
+                          </p>
+                          <p className="text-3xl font-extrabold" style={{ color: '#6366F1' }}>
+                            ₹{isCarpool ? myFare.toFixed(0) : (itemsByUser.find(g => (g.user?._id || g.user) === user?._id)?.total_estimated || 0).toFixed(0)}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Razorpay Pay Now — Primary */}
+                      <div className="rounded-xl p-5 space-y-3" style={{ background: 'linear-gradient(135deg, #1a237e 0%, #3949ab 100%)' }}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">⚡</span>
+                          <div>
+                            <p className="text-white font-bold text-sm">Pay Now with Razorpay</p>
+                            <p className="text-white/70 text-xs">Instant, secure payment. Platform holds funds safely.</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleRazorpayPay}
+                          disabled={payingRazorpay}
+                          className="w-full py-3 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                          style={{ background: '#F59E0B', color: '#1a237e' }}
+                        >
+                          {payingRazorpay ? '⏳ Opening Razorpay...' : '⚡ Pay with Razorpay'}
+                        </button>
+                        <p className="text-[10px] text-white/60 text-center">
+                          CommunityCollab collects payment securely and transfers to the orderer.
+                        </p>
+                      </div>
+
+                      {/* UTR fallback */}
+                      {pool.order_proof?.orderer_upi_id && (
+                        <details className="bg-surface-container rounded-xl overflow-hidden">
+                          <summary className="px-4 py-3 text-sm font-bold cursor-pointer text-on-surface-variant hover:text-on-surface">
+                            📲 Alternatively, pay via UPI & submit UTR
+                          </summary>
+                          <div className="px-4 pb-4 pt-2 space-y-3">
+                            <div className="rounded-xl p-3" style={{ background: '#FFF8E1' }}>
+                              <p className="text-xs font-bold mb-1" style={{ color: '#F57F17' }}>Pay to UPI</p>
+                              <p className="font-bold" style={{ color: '#F57F17' }}>{pool.order_proof.orderer_upi_id}</p>
+                              {pool.order_proof.orderer_upi_name && <p className="text-xs text-on-surface-variant">Name: {pool.order_proof.orderer_upi_name}</p>}
+                            </div>
+                            <input type="text" placeholder="Enter UTR / Transaction Reference" value={utrInput} onChange={e => setUtrInput(e.target.value)}
+                              className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                            <button onClick={handleSubmitUtr} disabled={submittingUtr}
+                              className="w-full py-2.5 rounded-xl font-bold text-white text-sm active:scale-95 transition-transform disabled:opacity-50"
+                              style={{ background: '#03A6A1' }}>
+                              {submittingUtr ? 'Submitting...' : 'Submit UTR'}
+                            </button>
+                          </div>
+                        </details>
+                      )}
                     </div>
                   )}
                 </div>
@@ -835,24 +1080,34 @@ export default function PoolDetail() {
 
           {/* Progress */}
           <div className="bg-surface-container-low rounded-3xl p-6">
-            <h3 className="text-xs font-bold uppercase text-on-surface-variant tracking-wider mb-4">Pool Progress</h3>
+            <h3 className="text-xs font-bold uppercase text-on-surface-variant tracking-wider mb-4">
+              {isCarpool ? 'Ride Progress' : 'Pool Progress'}
+            </h3>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-2xl font-extrabold">{activeParticipants}</span>
-              <span className="text-on-surface-variant text-sm">/ {pool.max_participants}</span>
+              <span className="text-2xl font-extrabold">{isCarpool ? seatsUsed : activeParticipants}</span>
+              <span className="text-on-surface-variant text-sm">/ {isCarpool ? (pool.carpool_details?.total_seats || maxCount) : maxCount}</span>
             </div>
             <div className="h-2 bg-outline-variant/20 rounded-full overflow-hidden mb-3">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: platformMeta.color }} />
             </div>
             <div className="flex justify-between text-xs text-on-surface-variant mb-4">
-              <span>{pool.max_participants - activeParticipants} spots left</span>
-              <span className="font-bold">{items.length} items added</span>
+              <span>{isCarpool ? `${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left` : `${maxCount - activeParticipants} spots left`}</span>
+              {!isCarpool && <span className="font-bold">{items.length} items added</span>}
+              {isCarpool && pool.carpool_details?.departure_time && (
+                <span className="font-bold">{new Date(pool.carpool_details.departure_time).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+              )}
             </div>
-            {totalEstimated > 0 && (
+            {isCarpool && pool.carpool_details?.fare_per_seat > 0 ? (
+              <div className="rounded-xl p-3 text-center" style={{ background: '#EEF2FF' }}>
+                <span className="text-xs text-on-surface-variant">Fare per Seat</span>
+                <p className="text-xl font-extrabold" style={{ color: '#6366F1' }}>₹{pool.carpool_details.fare_per_seat}</p>
+              </div>
+            ) : totalEstimated > 0 ? (
               <div className="rounded-xl p-3 text-center" style={{ background: `${platformMeta.color}15` }}>
                 <span className="text-xs text-on-surface-variant">Estimated Total</span>
                 <p className="text-xl font-extrabold" style={{ color: platformMeta.color }}>₹{totalEstimated.toFixed(0)}</p>
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Orderer info */}
@@ -892,8 +1147,8 @@ export default function PoolDetail() {
                 )}
               </div>
             ) : pool.status === 'open' ? (
-              <button onClick={handleJoin} disabled={joining} className="w-full py-3 rounded-xl primary-gradient text-white font-bold text-base shadow-lg active:scale-95 transition-transform disabled:opacity-50">
-                {joining ? 'Joining...' : 'Join Pool'}
+              <button onClick={handleJoinClick} disabled={joining} className="w-full py-3 rounded-xl primary-gradient text-white font-bold text-base shadow-lg active:scale-95 transition-transform disabled:opacity-50">
+                {joining ? 'Joining...' : isCarpool ? '🚗 Book a Seat' : 'Join Pool'}
               </button>
             ) : (
               <div className="text-center py-3 rounded-xl font-bold" style={{

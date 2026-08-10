@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import LegalNoticeModal from '../components/LegalNoticeModal'
 import TrustBadge from '../components/TrustBadge'
+import LocationPicker from '../components/LocationPicker'
+
+const NearMeMap = lazy(() => import('../components/NearMeMap'))
 
 const typeFilters = ['all', 'tool', 'workspace', 'vehicle', 'meal', 'other']
 
@@ -15,7 +18,8 @@ export default function Resources() {
   const [search, setSearch] = useState('')
   const [isFree, setIsFree] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', type: 'tool', condition: 'good', is_free: true, price_per_day: 0 })
+  const [form, setForm] = useState({ title: '', description: '', type: 'tool', condition: 'good', is_free: true, price_per_day: 0, location: {} })
+  const [viewMode, setViewMode] = useState('grid')
 
   const fetchResources = async ({ q = '', type = '', isFree: free = '' } = {}) => {
     setLoading(true)
@@ -58,9 +62,19 @@ export default function Resources() {
           <div className="h-1 w-24 bg-secondary rounded-full"></div>
           <p className="text-on-surface-variant mt-3">Borrow tools, share workspaces, and reduce waste together.</p>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="primary-gradient text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform flex items-center gap-2 shrink-0">
-          <span className="material-symbols-outlined text-sm">add</span> Share Resource
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <div className="flex bg-surface-container rounded-xl p-1">
+            <button onClick={() => setViewMode('grid')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${viewMode === 'grid' ? 'bg-white shadow text-on-surface' : 'text-on-surface-variant'}`}>
+              <span className="material-symbols-outlined text-sm">grid_view</span> Grid
+            </button>
+            <button onClick={() => setViewMode('map')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${viewMode === 'map' ? 'bg-white shadow text-on-surface' : 'text-on-surface-variant'}`}>
+              <span className="material-symbols-outlined text-sm">map</span> Map
+            </button>
+          </div>
+          <button onClick={() => setShowCreate(!showCreate)} className="primary-gradient text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform flex items-center gap-2 shrink-0">
+            <span className="material-symbols-outlined text-sm">add</span> Share Resource
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -97,6 +111,14 @@ export default function Resources() {
             <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none">
               {typeFilters.filter(t => t !== 'all').map(t => <option key={t} value={t}>{t}</option>)}
             </select>
+            <div className="md:col-span-2">
+              <LocationPicker
+                label="📍 Your location (so nearby people can find this resource)"
+                placeholder="Search your area or address..."
+                value={form.location?.address || ''}
+                onChange={(loc) => setForm({ ...form, location: { address: loc.address, city: loc.city, lat: loc.lat, lng: loc.lng } })}
+              />
+            </div>
             <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="md:col-span-2 bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-24" />
             <div className="md:col-span-2 flex gap-3">
               <button type="submit" className="primary-gradient text-white px-8 py-3 rounded-xl font-bold shadow-lg">Publish</button>
@@ -106,7 +128,14 @@ export default function Resources() {
         </div>
       )}
 
-      {loading ? (
+      {/* Map View */}
+      {viewMode === 'map' && (
+        <Suspense fallback={<div className="h-96 bg-surface-container-low rounded-3xl flex items-center justify-center"><span className="material-symbols-outlined text-primary text-4xl animate-spin">progress_activity</span></div>}>
+          <NearMeMap types="resources" height="500px" onNavigate={(route) => navigate(route)} />
+        </Suspense>
+      )}
+
+      {viewMode === 'grid' && (loading ? (
         <div className="flex justify-center py-20"><span className="material-symbols-outlined text-primary text-5xl animate-spin">progress_activity</span></div>
       ) : resources.length === 0 ? (
         <div className="text-center py-20"><span className="material-symbols-outlined text-surface-container-highest text-8xl">share_reviews</span><h3 className="text-xl font-bold mt-4">No resources yet</h3></div>
@@ -124,19 +153,20 @@ export default function Resources() {
                 </div>
               </div>
               <h3 className="font-bold text-lg mb-2">{res.title}</h3>
-              <p className="text-on-surface-variant text-sm line-clamp-2 mb-4">{res.description}</p>
+              <p className="text-on-surface-variant text-sm line-clamp-2 mb-3">{res.description}</p>
+              {res.location?.city && <p className="text-xs text-on-surface-variant mb-3 flex items-center gap-1"><span className="material-symbols-outlined text-xs">location_on</span>{res.location.city}</p>}
               <div className="flex items-center justify-between pt-4 border-t border-outline-variant/10">
                 <div className="flex items-center gap-2 flex-wrap">
                   <img src={res.owner?.avatar_url || 'https://ui-avatars.com/api/?name=U&background=e8e0d8&color=3c4948&bold=true&size=128'} alt="" className="w-6 h-6 rounded-full" />
                   <span className="text-xs font-medium">{res.owner?.name}</span>
                   <TrustBadge trust_score={res.owner?.trust_score} trust_level={res.owner?.trust_level} size="sm" />
                 </div>
-                <span className={`text-sm font-bold ${res.is_free ? 'text-secondary' : 'text-primary'}`}>{res.is_free ? 'Free' : `$${res.price_per_day}/day`}</span>
+                <span className={`text-sm font-bold ${res.is_free ? 'text-secondary' : 'text-primary'}`}>{res.is_free ? 'Free' : `₹${res.price_per_day}/day`}</span>
               </div>
             </div>
           ))}
         </div>
-      )}
+      ))}
     </div>
   )
 }

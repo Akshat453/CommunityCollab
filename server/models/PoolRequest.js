@@ -32,8 +32,19 @@ const PoolRequestSchema = new mongoose.Schema({
     enum: ['group_buy', 'carpool', 'custom'],
     default: 'group_buy'
   },
+  // ─── Carpool-specific details ────────────────────────────
+  carpool_details: {
+    origin: { type: String, trim: true },
+    destination_place: { type: String, trim: true },
+    fare_per_seat: { type: Number, min: 0 },
+    total_seats: { type: Number, min: 1 },
+    departure_time: { type: Date },
+    // Geo coords for route matching
+    origin_coords: { lat: { type: Number }, lng: { type: Number } },
+    destination_coords: { lat: { type: Number }, lng: { type: Number } }
+  },
   destination: {
-    type: String  // delivery address for the order
+    type: String  // delivery address for the order (group_buy)
   },
   scheduled_at: {
     type: Date
@@ -89,11 +100,22 @@ const PoolRequestSchema = new mongoose.Schema({
       enum: ['pending', 'confirmed', 'cancelled'],
       default: 'confirmed'
     },
+    // ─── Carpool-specific ─────────────────────────────────
+    seats_requested: {
+      type: Number,
+      default: 1,
+      min: 1
+    },
+    // ─── Payment ──────────────────────────────────────────
     payment_status: {
       type: String,
       enum: ['unpaid', 'utr_submitted', 'paid', 'disputed', 'refunded'],
       default: 'unpaid'
     },
+    // Razorpay tracking
+    razorpay_order_id: { type: String },
+    razorpay_payment_id: { type: String },
+    // UPI/UTR tracking (legacy)
     delivery_confirmed: {
       type: Boolean,
       default: false

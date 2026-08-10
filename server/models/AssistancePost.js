@@ -7,7 +7,7 @@ const AssistancePostSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
   urgency: { type: String, enum: ['low', 'medium', 'urgent'], default: 'low' },
-  location: { city: String, lat: Number, lng: Number },
+  location: { address: String, city: String, lat: Number, lng: Number },
   scheduled_at: { type: Date },
   status: { type: String, enum: ['open', 'matched', 'completed', 'cancelled'], default: 'open' },
   tags: [{ type: String }],

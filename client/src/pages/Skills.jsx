@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import LegalNoticeModal from '../components/LegalNoticeModal'
 import TrustBadge from '../components/TrustBadge'
+import LocationPicker from '../components/LocationPicker'
+
+const NearMeMap = lazy(() => import('../components/NearMeMap'))
 
 const categoryFilters = ['all', 'tech', 'languages', 'arts_music', 'life_skills', 'fitness', 'academic', 'trades']
 const modeFilters = ['all', 'online', 'in_person', 'both']
@@ -17,7 +20,8 @@ export default function Skills() {
   const [search, setSearch] = useState('')
   const [listingType, setListingType] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ skill_name: '', skill_category: 'tech', listing_type: 'offering', description: '', proficiency_level: 'intermediate', mode: 'both', exchange_type: 'free', what_i_offer_in_return: '' })
+  const [form, setForm] = useState({ skill_name: '', skill_category: 'tech', listing_type: 'offering', description: '', proficiency_level: 'intermediate', mode: 'both', exchange_type: 'free', what_i_offer_in_return: '', location: {} })
+  const [viewMode, setViewMode] = useState('grid')
 
   const fetchSkills = async ({ q = '', category = 'all', mode = 'all', exchange_type = 'all', listing_type = 'all' } = {}) => {
     setLoading(true)
@@ -61,9 +65,19 @@ export default function Skills() {
           <div className="h-1 w-24 bg-tertiary rounded-full"></div>
           <p className="text-on-surface-variant mt-3">Trade skills and learn something new from your community.</p>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="primary-gradient text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform flex items-center gap-2 shrink-0">
-          <span className="material-symbols-outlined text-sm">add</span> List Skill
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <div className="flex bg-surface-container rounded-xl p-1">
+            <button onClick={() => setViewMode('grid')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${viewMode === 'grid' ? 'bg-white shadow text-on-surface' : 'text-on-surface-variant'}`}>
+              <span className="material-symbols-outlined text-sm">grid_view</span> Grid
+            </button>
+            <button onClick={() => setViewMode('map')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${viewMode === 'map' ? 'bg-white shadow text-on-surface' : 'text-on-surface-variant'}`}>
+              <span className="material-symbols-outlined text-sm">map</span> Map
+            </button>
+          </div>
+          <button onClick={() => setShowCreate(!showCreate)} className="primary-gradient text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform flex items-center gap-2 shrink-0">
+            <span className="material-symbols-outlined text-sm">add</span> List Skill
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -129,6 +143,16 @@ export default function Skills() {
               <option value="barter">Barter</option>
             </select>
             <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="md:col-span-2 bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-24" />
+            {(form.mode === 'in_person' || form.mode === 'both') && (
+              <div className="md:col-span-2">
+                <LocationPicker
+                  label="📍 Your location (for in-person sessions)"
+                  placeholder="Search your area..."
+                  value={form.location?.address || ''}
+                  onChange={(loc) => setForm({ ...form, location: { address: loc.address, city: loc.city, lat: loc.lat, lng: loc.lng } })}
+                />
+              </div>
+            )}
             <div className="md:col-span-2 flex gap-3">
               <button type="submit" className="primary-gradient text-white px-8 py-3 rounded-xl font-bold shadow-lg">Publish Listing</button>
               <button type="button" onClick={() => setShowCreate(false)} className="bg-surface-container text-on-surface-variant px-6 py-3 rounded-xl font-bold">Cancel</button>
@@ -137,8 +161,15 @@ export default function Skills() {
         </div>
       )}
 
+      {/* Map View */}
+      {viewMode === 'map' && (
+        <Suspense fallback={<div className="h-96 bg-surface-container-low rounded-3xl flex items-center justify-center"><span className="material-symbols-outlined text-primary text-4xl animate-spin">progress_activity</span></div>}>
+          <NearMeMap types="skills" height="500px" onNavigate={(route) => navigate(route)} />
+        </Suspense>
+      )}
+
       {/* Grid */}
-      {loading ? (
+      {viewMode === 'grid' && (loading ? (
         <div className="flex justify-center py-20"><span className="material-symbols-outlined text-primary text-5xl animate-spin">progress_activity</span></div>
       ) : skills.length === 0 ? (
         <div className="text-center py-20">
@@ -181,7 +212,7 @@ export default function Skills() {
             </div>
           ))}
         </div>
-      )}
+      ))}
     </div>
   )
 }

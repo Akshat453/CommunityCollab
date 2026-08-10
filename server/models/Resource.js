@@ -7,7 +7,7 @@ const ResourceSchema = new mongoose.Schema({
   description: { type: String },
   image_urls: [{ type: String }],
   availability_schedule: { type: Object },
-  location: { city: String, lat: Number, lng: Number },
+  location: { address: String, city: String, lat: Number, lng: Number },
   is_free: { type: Boolean, default: true },
   price_per_day: { type: Number },
   condition: { type: String, enum: ['new', 'good', 'fair'], default: 'good' },
