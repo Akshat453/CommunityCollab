@@ -103,7 +103,7 @@ export default function Landing() {
           {[
             { img: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600', date: 'OCT 24', title: 'Rooftop Urban Gardening', spots: '15 spots left' },
             { img: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600', date: 'OCT 28', title: 'Creative Coding Basics', spots: '2 spots left' },
-            { img: 'https://images.unsplash.com/photo-1529543544282-7a407e6539ae?w=600', date: 'NOV 02', title: 'Zero-Waste Community Potluck', spots: '45 people joined' },
+            { img: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600', date: 'NOV 02', title: 'Zero-Waste Community Potluck', spots: '45 people joined' },
           ].map((event, i) => (
             <div key={i} className="min-w-[350px] bg-white rounded-3xl overflow-hidden shadow-sm group">
               <div className="h-64 relative overflow-hidden">
