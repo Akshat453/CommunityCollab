@@ -34,12 +34,12 @@ const platformFilters = ['all', 'blinkit', 'swiggy', 'zomato', 'amazon', 'flipka
 const INITIAL_FORM = {
   title: '', description: '', type: 'group_buy', platform: 'custom',
   platform_custom_name: '', max_participants: 6, destination: '', tags: '',
-  location: {},
+  location: {}, fulfilment_method: 'common_pickup', pickup_instructions: '', pickup_landmark: '', pickup_available_from: '', pickup_available_until: '',
   // Carpool extras
   carpool_origin: '', carpool_origin_coords: null,
   carpool_destination: '', carpool_destination_coords: null,
   carpool_fare_per_seat: '',
-  carpool_total_seats: '', carpool_departure_time: ''
+  carpool_total_seats: '', carpool_departure_time: '', carpool_pickup_instructions: '', carpool_dropoff_instructions: ''
 }
 
 export default function Pools() {
@@ -86,6 +86,14 @@ export default function Pools() {
         platform_custom_name: form.platform_custom_name,
         max_participants: form.type === 'carpool' ? Number(form.carpool_total_seats) || 6 : Number(form.max_participants),
         destination: form.type !== 'carpool' ? form.destination : undefined,
+        fulfilment: form.type !== 'carpool' ? {
+          method: form.fulfilment_method,
+          pickup_location: form.location?.lat ? form.location : (form.destination ? { address: form.destination } : undefined),
+          landmark: form.pickup_landmark,
+          instructions: form.pickup_instructions,
+          available_from: form.pickup_available_from || undefined,
+          available_until: form.pickup_available_until || undefined
+        } : undefined,
         tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : []
       }
       if (form.type === 'carpool') {
@@ -95,6 +103,8 @@ export default function Pools() {
           fare_per_seat: Number(form.carpool_fare_per_seat) || 0,
           total_seats: Number(form.carpool_total_seats) || 4,
           departure_time: form.carpool_departure_time || undefined,
+          pickup_instructions: form.carpool_pickup_instructions,
+          dropoff_instructions: form.carpool_dropoff_instructions,
           origin_coords: form.carpool_origin_coords || undefined,
           destination_coords: form.carpool_destination_coords || undefined
         }
@@ -202,14 +212,23 @@ export default function Pools() {
                 )}
                 <input type="number" placeholder="Max participants" value={form.max_participants} onChange={e => setForm({ ...form, max_participants: e.target.value })} min="2" className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
                 <input type="text" placeholder="Delivery address / pickup point" value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                <select value={form.fulfilment_method} onChange={e => setForm({ ...form, fulfilment_method: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none">
+                  <option value="common_pickup">Common pickup point</option>
+                  <option value="individual_delivery">Individual arrangement</option>
+                  <option value="digital">Online / digital item</option>
+                </select>
+                <input type="text" placeholder="Landmark (optional)" value={form.pickup_landmark} onChange={e => setForm({ ...form, pickup_landmark: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
                 <div className="md:col-span-2">
                   <LocationPicker
-                    label="📍 Pool location (so nearby people can discover it on the map)"
+                    label="📍 Pickup/discovery area"
                     placeholder="Search your area or delivery zone..."
                     value={form.location?.address || ''}
                     onChange={(loc) => setForm({ ...form, location: { address: loc.address, city: loc.city, lat: loc.lat, lng: loc.lng } })}
                   />
                 </div>
+                <textarea placeholder="Pickup instructions / collection window" value={form.pickup_instructions} onChange={e => setForm({ ...form, pickup_instructions: e.target.value })} className="md:col-span-2 bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-20" />
+                <input type="datetime-local" value={form.pickup_available_from} onChange={e => setForm({ ...form, pickup_available_from: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                <input type="datetime-local" value={form.pickup_available_until} onChange={e => setForm({ ...form, pickup_available_until: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
               </>
             )}
 
@@ -234,6 +253,8 @@ export default function Pools() {
                 </div>
                 <input type="number" placeholder="💺 Total seats available" value={form.carpool_total_seats || ''} onChange={e => setForm({ ...form, carpool_total_seats: e.target.value })} min="1" required className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
                 <input type="number" placeholder="💰 Fare per seat (₹)" value={form.carpool_fare_per_seat || ''} onChange={e => setForm({ ...form, carpool_fare_per_seat: e.target.value })} min="0" step="0.01" className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                <textarea placeholder="Pickup instructions for riders" value={form.carpool_pickup_instructions} onChange={e => setForm({ ...form, carpool_pickup_instructions: e.target.value })} className="md:col-span-2 bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-20" />
+                <textarea placeholder="Drop-off instructions (optional)" value={form.carpool_dropoff_instructions} onChange={e => setForm({ ...form, carpool_dropoff_instructions: e.target.value })} className="md:col-span-2 bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-20" />
                 <div className="md:col-span-2">
                   <label className="text-xs font-bold text-on-surface-variant mb-1 block">🕐 Departure Date &amp; Time</label>
                   <input type="datetime-local" value={form.carpool_departure_time || ''} onChange={e => setForm({ ...form, carpool_departure_time: e.target.value })} className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />

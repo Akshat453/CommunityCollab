@@ -39,12 +39,27 @@ const PoolRequestSchema = new mongoose.Schema({
     fare_per_seat: { type: Number, min: 0 },
     total_seats: { type: Number, min: 1 },
     departure_time: { type: Date },
+    pickup_instructions: { type: String },
+    dropoff_instructions: { type: String },
     // Geo coords for route matching
     origin_coords: { lat: { type: Number }, lng: { type: Number } },
     destination_coords: { lat: { type: Number }, lng: { type: Number } }
   },
   destination: {
     type: String  // delivery address for the order (group_buy)
+  },
+  fulfilment: {
+    method: {
+      type: String,
+      enum: ['common_pickup', 'individual_delivery', 'digital'],
+      default: 'common_pickup'
+    },
+    pickup_location: { address: String, city: String, lat: Number, lng: Number },
+    landmark: { type: String },
+    instructions: { type: String },
+    available_from: { type: Date },
+    available_until: { type: Date },
+    ready_at: { type: Date }
   },
   scheduled_at: {
     type: Date
@@ -106,6 +121,14 @@ const PoolRequestSchema = new mongoose.Schema({
       default: 1,
       min: 1
     },
+    pickup_point: { address: String, city: String, lat: Number, lng: Number, instructions: String },
+    collection_status: {
+      type: String,
+      enum: ['pending', 'ready', 'collected'],
+      default: 'pending'
+    },
+    ready_for_collection_at: { type: Date },
+    collected_at: { type: Date },
     // ─── Payment ──────────────────────────────────────────
     payment_status: {
       type: String,
@@ -127,5 +150,8 @@ const PoolRequestSchema = new mongoose.Schema({
     payment_confirmed_at: { type: Date }
   }]
 }, { timestamps: true })
+
+PoolRequestSchema.index({ type: 1, status: 1, createdAt: -1 })
+PoolRequestSchema.index({ status: 1, 'carpool_details.departure_time': 1 })
 
 module.exports = mongoose.model('PoolRequest', PoolRequestSchema)

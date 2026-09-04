@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import TrustBadge from '../components/TrustBadge'
+import LocationPicker from '../components/LocationPicker'
 
 const categoryIcons = { tech: 'code', languages: 'translate', arts_music: 'palette', life_skills: 'self_improvement', fitness: 'fitness_center', academic: 'school', trades: 'construction', other: 'interests' }
 
@@ -24,6 +25,8 @@ export default function SkillDetail() {
   const [submittingUtr, setSubmittingUtr] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)
   const [completingSession, setCompletingSession] = useState(false)
+  const [acceptForm, setAcceptForm] = useState({ scheduled_at: '', duration_minutes: 60, session_mode: 'online', meeting_link: '', meeting_location: {}, session_notes: '' })
+  const [accepting, setAccepting] = useState(false)
 
   const fetchConnection = async () => {
     if (!user) return
@@ -51,6 +54,10 @@ export default function SkillDetail() {
     fetchConnection()
   }, [id])
 
+  useEffect(() => {
+    if (skill?.mode === 'in_person') setAcceptForm(prev => ({ ...prev, session_mode: 'in_person' }))
+  }, [skill?.mode])
+
   const handleConnect = async () => {
     setConnecting(true)
     try {
@@ -61,6 +68,30 @@ export default function SkillDetail() {
     } finally {
       setConnecting(false)
     }
+  }
+
+  const handleAcceptConnection = async () => {
+    setAccepting(true)
+    try {
+      await api.patch(`/skills/connections/${connection._id}/accept`, {
+        scheduled_at: acceptForm.scheduled_at,
+        duration_minutes: Number(acceptForm.duration_minutes) || 60,
+        session_mode: acceptForm.session_mode,
+        meeting_link: acceptForm.meeting_link,
+        meeting_location: acceptForm.meeting_location?.lat ? acceptForm.meeting_location : undefined,
+        session_notes: acceptForm.session_notes
+      })
+      fetchConnection()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to accept') }
+    finally { setAccepting(false) }
+  }
+
+  const handleRejectConnection = async () => {
+    if (!window.confirm('Decline this connection request?')) return
+    try {
+      await api.patch(`/skills/connections/${connection._id}/reject`)
+      fetchConnection()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to reject') }
   }
 
   const handleSetUpi = async () => {
@@ -218,6 +249,43 @@ export default function SkillDetail() {
               </div>
             )}
           </div>
+
+          {/* Session Completion Section */}
+          {connection && connection.status === 'pending' && isTeacher && (
+            <div className="bg-surface-container-low rounded-3xl p-6 space-y-3">
+              <h2 className="font-bold text-lg">Schedule Session</h2>
+              <input type="datetime-local" value={acceptForm.scheduled_at} onChange={e => setAcceptForm({ ...acceptForm, scheduled_at: e.target.value })} className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+              <div className="grid grid-cols-2 gap-3">
+                <input type="number" min="15" max="480" value={acceptForm.duration_minutes} onChange={e => setAcceptForm({ ...acceptForm, duration_minutes: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                <select value={acceptForm.session_mode} onChange={e => setAcceptForm({ ...acceptForm, session_mode: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none">
+                  {skill.mode !== 'in_person' && <option value="online">Online</option>}
+                  {skill.mode !== 'online' && <option value="in_person">In person</option>}
+                </select>
+              </div>
+              {acceptForm.session_mode === 'online' ? (
+                <input type="url" placeholder="Meeting link" value={acceptForm.meeting_link} onChange={e => setAcceptForm({ ...acceptForm, meeting_link: e.target.value })} className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+              ) : (
+                <LocationPicker label="Meeting location" value={acceptForm.meeting_location?.address || ''} onChange={(loc) => setAcceptForm({ ...acceptForm, meeting_location: loc })} />
+              )}
+              <textarea placeholder="Notes for the learner" value={acceptForm.session_notes} onChange={e => setAcceptForm({ ...acceptForm, session_notes: e.target.value })} className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-20" />
+              <div className="flex gap-2">
+                <button onClick={handleAcceptConnection} disabled={accepting} className="flex-1 py-2.5 rounded-xl font-bold text-white text-sm disabled:opacity-50" style={{ background: '#03A6A1' }}>{accepting ? 'Accepting...' : 'Accept & Share Details'}</button>
+                <button onClick={handleRejectConnection} className="px-5 py-2.5 rounded-xl font-bold text-error border-2 border-error/30 text-sm">Reject</button>
+              </div>
+            </div>
+          )}
+
+          {connection && ['accepted', 'completed'].includes(connection.status) && (
+            <div className="bg-surface-container-low rounded-3xl p-6 space-y-3">
+              <h2 className="font-bold text-lg">Session Details</h2>
+              {connection.scheduled_at && <p className="text-sm"><strong>When:</strong> {new Date(connection.scheduled_at).toLocaleString()}</p>}
+              {connection.duration_minutes && <p className="text-sm"><strong>Duration:</strong> {connection.duration_minutes} minutes</p>}
+              <p className="text-sm"><strong>Mode:</strong> {connection.session_mode === 'in_person' ? 'In person' : 'Online'}</p>
+              {connection.meeting_link && <a href={connection.meeting_link} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-primary">Open meeting link</a>}
+              {connection.meeting_location?.address && <p className="text-sm">{connection.meeting_location.address}</p>}
+              {connection.session_notes && <p className="text-sm text-on-surface-variant">{connection.session_notes}</p>}
+            </div>
+          )}
 
           {/* Session Completion Section */}
           {connection && connection.status === 'accepted' && (

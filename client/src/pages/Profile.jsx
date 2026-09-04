@@ -62,7 +62,7 @@ export default function Profile() {
                   <span className="flex items-center gap-1"><span className="material-symbols-outlined text-primary text-lg">location_on</span> {user.location.city}</span>
                 )}
                 <span className="w-1 h-1 bg-outline-variant rounded-full"></span>
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-primary text-lg">calendar_today</span> Joined {new Date(user.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-primary text-lg">calendar_today</span> Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently'}</span>
               </div>
             </div>
             <div className="flex gap-3 pb-4">

@@ -9,6 +9,8 @@ const typeIcons = { tool: 'build', workspace: 'meeting_room', vehicle: 'directio
 const REQUEST_STATUS_STYLES = {
   pending: { bg: '#FFF8E1', color: '#F57F17', label: 'Pending' },
   approved: { bg: '#E3F2FD', color: '#1565C0', label: 'Approved' },
+  in_possession: { bg: '#E3F2FD', color: '#1565C0', label: 'In Possession' },
+  return_pending: { bg: '#FFF8E1', color: '#F57F17', label: 'Return Pending' },
   rejected: { bg: '#FFEBEE', color: '#C62828', label: 'Rejected' },
   returned: { bg: '#E8F5E9', color: '#2E7D32', label: 'Returned' },
   utr_submitted: { bg: '#E3F2FD', color: '#1565C0', label: 'UTR Submitted' },
@@ -29,7 +31,7 @@ export default function ResourceDetail() {
   // Actions state
   const [actionLoading, setActionLoading] = useState(null)
   const [utrInputs, setUtrInputs] = useState({})
-  const [approveUpi, setApproveUpi] = useState({ upi_id: '', upi_name: '' })
+  const [approveUpi, setApproveUpi] = useState({ upi_id: '', upi_name: '', pickup_instructions: '', agreed_pickup_at: '' })
 
   const fetchResource = async () => {
     setLoading(true)
@@ -60,8 +62,10 @@ export default function ResourceDetail() {
       const payload = {}
       if (approveUpi.upi_id) payload.owner_upi_id = approveUpi.upi_id
       if (approveUpi.upi_name) payload.owner_upi_name = approveUpi.upi_name
+      if (approveUpi.pickup_instructions) payload.pickup_instructions = approveUpi.pickup_instructions
+      if (approveUpi.agreed_pickup_at) payload.agreed_pickup_at = approveUpi.agreed_pickup_at
       await api.patch(`/resources/${id}/requests/${requestId}/approve`, payload)
-      setApproveUpi({ upi_id: '', upi_name: '' })
+      setApproveUpi({ upi_id: '', upi_name: '', pickup_instructions: '', agreed_pickup_at: '' })
       fetchResource()
     } catch (err) { alert(err.response?.data?.message || 'Failed to approve') }
     finally { setActionLoading(null) }
@@ -82,6 +86,24 @@ export default function ResourceDetail() {
       await api.post(`/resources/${id}/requests/${requestId}/return`)
       fetchResource()
     } catch (err) { alert(err.response?.data?.message || 'Failed to return') }
+    finally { setActionLoading(null) }
+  }
+
+  const handleConfirmHandover = async (requestId) => {
+    setActionLoading(`handover-${requestId}`)
+    try {
+      await api.post(`/resources/${id}/requests/${requestId}/confirm-handover`)
+      fetchResource()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to confirm handover') }
+    finally { setActionLoading(null) }
+  }
+
+  const handleConfirmReturn = async (requestId) => {
+    setActionLoading(`return-confirm-${requestId}`)
+    try {
+      await api.post(`/resources/${id}/requests/${requestId}/confirm-return`)
+      fetchResource()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to confirm return') }
     finally { setActionLoading(null) }
   }
 
@@ -180,6 +202,10 @@ export default function ResourceDetail() {
                       {/* Owner actions for pending requests */}
                       {isOwner && r.status === 'pending' && (
                         <div className="space-y-2 pt-2 border-t border-outline-variant/10">
+                          <input type="datetime-local" value={approveUpi.agreed_pickup_at} onChange={e => setApproveUpi({ ...approveUpi, agreed_pickup_at: e.target.value })}
+                            className="w-full bg-surface-container-low rounded-lg px-3 py-2 text-xs border-none outline-none" />
+                          <textarea placeholder="Pickup instructions" value={approveUpi.pickup_instructions} onChange={e => setApproveUpi({ ...approveUpi, pickup_instructions: e.target.value })}
+                            className="w-full bg-surface-container-low rounded-lg px-3 py-2 text-xs border-none outline-none resize-none h-16" />
                           {!resource.is_free && (
                             <div className="grid grid-cols-2 gap-2">
                               <input type="text" placeholder="Your UPI ID (optional)" value={approveUpi.upi_id} onChange={e => setApproveUpi({ ...approveUpi, upi_id: e.target.value })}
@@ -201,14 +227,41 @@ export default function ResourceDetail() {
                         </div>
                       )}
 
+                      {['approved', 'in_possession', 'return_pending', 'returned'].includes(r.status) && (
+                        <div className="rounded-lg p-3 bg-surface-container-low space-y-1">
+                          <p className="text-xs font-bold text-on-surface-variant">Handover</p>
+                          {r.agreed_pickup_at && <p className="text-xs">Pickup: {new Date(r.agreed_pickup_at).toLocaleString()}</p>}
+                          {r.pickup_location?.address && <p className="text-xs">{r.pickup_location.address}</p>}
+                          {r.pickup_instructions && <p className="text-xs text-on-surface-variant">{r.pickup_instructions}</p>}
+                          <p className="text-[10px] text-on-surface-variant">
+                            Owner handover: {r.owner_handover_confirmed_at ? 'confirmed' : 'pending'} · Borrower receipt: {r.borrower_received_at ? 'confirmed' : 'pending'}
+                          </p>
+                          {resource.directions_url && <a href={resource.directions_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary">Open directions</a>}
+                        </div>
+                      )}
+
+                      {(isOwner || isMyRequest) && r.status === 'approved' && (
+                        <button onClick={() => handleConfirmHandover(r._id)} disabled={actionLoading === `handover-${r._id}`}
+                          className="w-full py-2 rounded-lg font-bold text-white text-xs disabled:opacity-50" style={{ background: '#2874F0' }}>
+                          {actionLoading === `handover-${r._id}` ? 'Confirming...' : isOwner ? 'Confirm Handed Over' : 'Confirm Received'}
+                        </button>
+                      )}
+
                       {/* Borrower: Mark as returned */}
-                      {isMyRequest && r.status === 'approved' && (
+                      {isMyRequest && r.status === 'in_possession' && (
                         <div className="pt-2 border-t border-outline-variant/10">
                           <button onClick={() => handleReturn(r._id)} disabled={actionLoading === `return-${r._id}`}
                             className="w-full py-2.5 rounded-xl font-bold text-white text-sm active:scale-95 transition-transform disabled:opacity-50" style={{ background: '#03A6A1' }}>
                             {actionLoading === `return-${r._id}` ? 'Returning...' : '📦 Mark as Returned'}
                           </button>
                         </div>
+                      )}
+
+                      {isOwner && r.status === 'return_pending' && (
+                        <button onClick={() => handleConfirmReturn(r._id)} disabled={actionLoading === `return-confirm-${r._id}`}
+                          className="w-full py-2.5 rounded-xl font-bold text-white text-sm disabled:opacity-50" style={{ background: '#03A6A1' }}>
+                          {actionLoading === `return-confirm-${r._id}` ? 'Confirming...' : 'Confirm Return Received'}
+                        </button>
                       )}
 
                       {/* Borrower: Submit UTR after return (paid resources) */}

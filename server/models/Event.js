@@ -19,4 +19,7 @@ const EventSchema = new mongoose.Schema({
   tags: [{ type: String }]
 }, { timestamps: true })
 
+EventSchema.index({ status: 1, starts_at: 1 })
+EventSchema.index({ organizer: 1, starts_at: -1 })
+
 module.exports = mongoose.model('Event', EventSchema)

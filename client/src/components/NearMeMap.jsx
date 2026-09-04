@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -48,7 +48,7 @@ function makeIcon(color, emoji) {
 
 function RecenterMap({ lat, lng }) {
   const map = useMap()
-  useEffect(() => { if (lat && lng) map.setView([lat, lng], map.getZoom()) }, [lat, lng])
+  useEffect(() => { if (lat && lng) map.setView([lat, lng], map.getZoom()) }, [lat, lng, map])
   return null
 }
 

@@ -19,10 +19,18 @@ const ResourceSchema = new mongoose.Schema({
     end_date: Date,
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected', 'returned', 'utr_submitted', 'payment_confirmed'],
+      enum: ['pending', 'approved', 'in_possession', 'return_pending', 'returned', 'utr_submitted', 'payment_confirmed', 'rejected', 'cancelled', 'disputed'],
       default: 'pending'
     },
     message: String,
+    pickup_location: { address: String, city: String, lat: Number, lng: Number },
+    pickup_instructions: String,
+    agreed_pickup_at: Date,
+    return_location: { address: String, city: String, lat: Number, lng: Number },
+    owner_handover_confirmed_at: Date,
+    borrower_received_at: Date,
+    borrower_returned_at: Date,
+    owner_return_confirmed_at: Date,
     owner_upi_id: { type: String },
     owner_upi_name: { type: String },
     utr_number: { type: String },
@@ -31,5 +39,8 @@ const ResourceSchema = new mongoose.Schema({
     payment_confirmed_at: { type: Date }
   }]
 }, { timestamps: true })
+
+ResourceSchema.index({ status: 1, type: 1, createdAt: -1 })
+ResourceSchema.index({ owner: 1, status: 1 })
 
 module.exports = mongoose.model('Resource', ResourceSchema)

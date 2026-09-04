@@ -8,4 +8,6 @@ const MessageSchema = new mongoose.Schema({
   card_data: { type: Object }
 }, { timestamps: true })
 
+MessageSchema.index({ room: 1, createdAt: -1 })
+
 module.exports = mongoose.model('Message', MessageSchema)

@@ -234,6 +234,14 @@ const seed = async () => {
     designated_orderer: rahul._id,
     tags: ['groceries', 'bulk', 'dmart'],
     location: { city: 'Ahmedabad', lat: 23.0150, lng: 72.5600 },
+    fulfilment: {
+      method: 'common_pickup',
+      pickup_location: { address: 'Community Center, Paldi, Ahmedabad', city: 'Ahmedabad', lat: 23.0150, lng: 72.5600 },
+      landmark: 'Main gate security desk',
+      instructions: 'Collect from the reception table between 6 PM and 8 PM after the order arrives.',
+      available_from: new Date(now.getTime() + 3 * 86400000 + 18 * 3600000),
+      available_until: new Date(now.getTime() + 3 * 86400000 + 20 * 3600000)
+    },
     participants: [
       { user: rahul._id, joined_at: now, status: 'confirmed', payment_status: 'unpaid', delivery_confirmed: false },
       { user: dev._id, joined_at: now, status: 'confirmed', payment_status: 'unpaid', delivery_confirmed: false }
@@ -258,6 +266,8 @@ const seed = async () => {
       fare_per_seat: 150,
       total_seats: 4,
       departure_time: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      pickup_instructions: 'Meet near the Satellite BRTS stop 10 minutes before departure.',
+      dropoff_instructions: 'Drop-off at the GIFT City main visitor gate.',
       origin_coords: { lat: 23.0300, lng: 72.5100 },
       destination_coords: { lat: 23.1600, lng: 72.6800 }
     },
@@ -295,6 +305,14 @@ const seed = async () => {
     designated_orderer: aisha._id,
     tags: ['organic', 'vegetables', 'coop', 'weekly'],
     location: { city: 'Ahmedabad', lat: 23.0400, lng: 72.5900 },
+    fulfilment: {
+      method: 'common_pickup',
+      pickup_location: { address: 'Aisha Apartment Lobby, Navrangpura, Ahmedabad', city: 'Ahmedabad', lat: 23.0400, lng: 72.5900 },
+      landmark: 'Blue notice board',
+      instructions: 'Bring your own bag. Items are sorted by participant name.',
+      available_from: new Date(now.getTime() + 7 * 86400000 + 9 * 3600000),
+      available_until: new Date(now.getTime() + 7 * 86400000 + 12 * 3600000)
+    },
     participants: [
       { user: aisha._id, joined_at: now, status: 'confirmed', payment_status: 'unpaid', delivery_confirmed: false },
       { user: admin._id, joined_at: now, status: 'confirmed', payment_status: 'unpaid', delivery_confirmed: false },
@@ -345,7 +363,7 @@ const seed = async () => {
       mode: 'in_person',
       exchange_type: 'free',
       tags: ['guitar', 'music', 'acoustic'],
-      location: { city: 'Ahmedabad', lat: 23.0150, lng: 72.5600 }
+      location: { address: 'Paldi Community Center tool shelf', city: 'Ahmedabad', lat: 23.0150, lng: 72.5600 }
     },
     {
       user: aisha._id,
@@ -358,7 +376,7 @@ const seed = async () => {
       exchange_type: 'paid',
       price_per_hour: 300,
       tags: ['yoga', 'meditation', 'wellness'],
-      location: { city: 'Ahmedabad', lat: 23.0400, lng: 72.5900 }
+      location: { address: 'Navrangpura Study Hall, 2nd floor', city: 'Ahmedabad', lat: 23.0400, lng: 72.5900 }
     },
     {
       user: dev._id,
@@ -426,6 +444,10 @@ const seed = async () => {
       urgency: 'urgent',
       status: 'open',
       location: { city: 'Ahmedabad', lat: 23.0400, lng: 72.5900 },
+      coordination: {
+        precise_location: { address: 'Paldi lane near Medplus, Ahmedabad', city: 'Ahmedabad', lat: 23.0400, lng: 72.5900 },
+        instructions: 'Exact flat number is shared only after accepting a helper.'
+      },
       tags: ['medicine', 'delivery', 'urgent']
     },
     {

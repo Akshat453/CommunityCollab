@@ -17,4 +17,17 @@ const protect = async (req, res, next) => {
   }
 }
 
-module.exports = { protect }
+const optionalProtect = async (req, res, next) => {
+  const auth = req.headers.authorization
+  if (!auth?.startsWith('Bearer')) return next()
+
+  try {
+    const decoded = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET)
+    req.user = await User.findById(decoded.id)
+  } catch {
+    req.user = null
+  }
+  next()
+}
+
+module.exports = { protect, optionalProtect }

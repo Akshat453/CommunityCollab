@@ -62,6 +62,17 @@
 | **🤝 Direct Assistance** | Post or respond to one-to-one help requests for errands, tutoring, delivery, and more |
 | **💬 Real-Time Messaging** | Socket.IO powered group and direct messaging across all modules |
 
+### Real-World Coordination
+
+The core workflows include the practical details needed to finish transactions:
+
+- Group buys include fulfilment method, pickup point, collection instructions, readiness, individual collection confirmation, and UPI/UTR payment confirmation.
+- Carpools require origin/destination map points, future departure time, seat availability, rider pickup point, and fare validation.
+- Resources include overlap-safe borrow requests, approved pickup instructions, dual handover confirmation, return confirmation, and payment after confirmed return.
+- Skill connections include scheduling, duration, online meeting links or in-person location, two-sided completion, and paid UPI confirmation.
+- Assistance posts include matched helper flow, start/completion markers, requester confirmation, cancellation recovery, and community points only after confirmed completion.
+- Public discovery uses approximate locations; precise addresses/instructions are revealed only after joining, approval, or matching.
+
 ---
 
 ## 🛠 Tech Stack

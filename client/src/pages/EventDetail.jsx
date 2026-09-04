@@ -68,6 +68,11 @@ export default function EventDetail() {
   const isJoined = event.participants?.some(p => (p.user?._id || p.user) === user?._id)
   const isOrganizer = (event.organizer?._id || event.organizer) === user?._id
   const pct = event.max_volunteers ? (event.registered_count / event.max_volunteers) * 100 : 50
+  const directionsUrl = event.location?.lat && event.location?.lng
+    ? `https://www.openstreetmap.org/directions?to=${event.location.lat}%2C${event.location.lng}`
+    : event.location?.address
+      ? `https://www.openstreetmap.org/search?query=${encodeURIComponent(event.location.address)}`
+      : null
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -116,6 +121,7 @@ export default function EventDetail() {
                 <div>
                   <p className="text-sm font-bold">{event.location.address}</p>
                   {event.location.city && <p className="text-xs text-on-surface-variant">{event.location.city}</p>}
+                  {directionsUrl && <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary">Open directions</a>}
                 </div>
               </div>
             )}

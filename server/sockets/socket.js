@@ -1,6 +1,7 @@
 const { Server } = require('socket.io')
 const jwt = require('jsonwebtoken')
 const Message = require('../models/Message')
+const { canAccessRoom } = require('../utils/workflowAccess')
 
 let io
 
@@ -40,14 +41,19 @@ const initSocket = (server) => {
 
   io.on('connection', (socket) => {
     console.log(`[Socket] Connected: ${socket.userName} (${socket.userId})`)
+    const authorizedRooms = new Set()
 
     // Auto-join personal notification room
     socket.join(`user:${socket.userId}`)
     socket.emit('connected', { userId: socket.userId, name: socket.userName })
 
     // Join a chat room (pool, event, skill_connection, dm)
-    socket.on('join_room', ({ room }) => {
+    socket.on('join_room', async ({ room }) => {
+      if (!(await canAccessRoom(room, socket.userId))) {
+        return socket.emit('room_error', { room, error: 'You do not have access to this conversation' })
+      }
       socket.join(room)
+      authorizedRooms.add(room)
       console.log(`[Socket] ${socket.userName} joined room: ${room}`)
 
       // Track online users in room
@@ -67,6 +73,7 @@ const initSocket = (server) => {
 
     socket.on('leave_room', ({ room }) => {
       socket.leave(room)
+      authorizedRooms.delete(room)
       if (roomUsers[room]) {
         roomUsers[room].delete(socket.id)
         io.to(room).emit('room_users', {
@@ -82,6 +89,12 @@ const initSocket = (server) => {
       try {
         if (!room || !content?.trim()) {
           return socket.emit('message_error', { error: 'Room and content are required' })
+        }
+        if (!authorizedRooms.has(room)) {
+          return socket.emit('message_error', { error: 'Join this conversation before sending messages' })
+        }
+        if (!(await canAccessRoom(room, socket.userId))) {
+          return socket.emit('message_error', { error: 'You do not have access to this conversation' })
         }
         const message = await Message.create({
           room,
@@ -124,10 +137,12 @@ const initSocket = (server) => {
     })
 
     // Typing indicators
-    socket.on('typing_start', ({ room }) => {
+    socket.on('typing_start', async ({ room }) => {
+      if (!authorizedRooms.has(room) || !(await canAccessRoom(room, socket.userId))) return
       socket.to(room).emit('user_typing', { userId: socket.userId, name: socket.userName })
     })
-    socket.on('typing_stop', ({ room }) => {
+    socket.on('typing_stop', async ({ room }) => {
+      if (!authorizedRooms.has(room) || !(await canAccessRoom(room, socket.userId))) return
       socket.to(room).emit('user_stopped_typing', { userId: socket.userId })
     })
 

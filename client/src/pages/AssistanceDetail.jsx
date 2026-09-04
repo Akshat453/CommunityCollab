@@ -14,6 +14,7 @@ export default function AssistanceDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [acceptingResponse, setAcceptingResponse] = useState(null)
+  const [actionLoading, setActionLoading] = useState(null)
 
   const fetchPost = async () => {
     setLoading(true)
@@ -36,12 +37,23 @@ export default function AssistanceDetail() {
   }
 
   const handleAcceptResponse = async (responseId) => {
+    const instructions = prompt('Share pickup/meeting instructions for the accepted helper:')
     setAcceptingResponse(responseId)
     try {
-      await api.patch(`/assistance/${id}/responses/${responseId}/accept`)
+      await api.patch(`/assistance/${id}/responses/${responseId}/accept`, { instructions })
       fetchPost()
     } catch (err) { alert(err.response?.data?.message || 'Failed to accept response') }
     finally { setAcceptingResponse(null) }
+  }
+
+  const handleAction = async (action, confirmText) => {
+    if (confirmText && !window.confirm(confirmText)) return
+    setActionLoading(action)
+    try {
+      await api.patch(`/assistance/${id}/${action}`)
+      fetchPost()
+    } catch (err) { alert(err.response?.data?.message || 'Action failed') }
+    finally { setActionLoading(null) }
   }
 
   if (loading) return <div className="max-w-4xl mx-auto flex justify-center py-32"><span className="material-symbols-outlined text-primary text-5xl animate-spin">progress_activity</span></div>
@@ -50,6 +62,8 @@ export default function AssistanceDetail() {
 
   const isPoster = (post.poster?._id || post.poster) === user?._id
   const hasResponded = post.responses?.some(r => (r.responder?._id || r.responder) === user?._id)
+  const accepted = post.responses?.find(r => r.status === 'accepted')
+  const isAcceptedHelper = (accepted?.responder?._id || accepted?.responder) === user?._id
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -91,7 +105,32 @@ export default function AssistanceDetail() {
               <div className="flex items-center gap-3"><div className="w-10 h-10 bg-secondary-container rounded-xl flex items-center justify-center"><span className="material-symbols-outlined text-on-secondary-container material-fill">location_on</span></div><div><p className="text-sm font-bold">{post.location.city}</p><p className="text-xs text-on-surface-variant">Location</p></div></div>
             )}
             <div className="flex items-center gap-3"><div className="w-10 h-10 bg-tertiary-fixed rounded-xl flex items-center justify-center"><span className="material-symbols-outlined text-tertiary material-fill">forum</span></div><div><p className="text-sm font-bold">{post.responses?.length || 0} response{(post.responses?.length || 0) !== 1 ? 's' : ''}</p><p className="text-xs text-on-surface-variant">People have reached out</p></div></div>
+            {post.coordination?.instructions && (
+              <div className="rounded-xl p-3 bg-surface-container">
+                <p className="text-xs font-bold text-on-surface-variant mb-1">Coordination</p>
+                {post.coordination.precise_location?.address && <p className="text-sm">{post.coordination.precise_location.address}</p>}
+                <p className="text-sm">{post.coordination.instructions}</p>
+                {post.coordination.directions_url && <a href={post.coordination.directions_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary">Open directions</a>}
+              </div>
+            )}
           </div>
+
+          {(isPoster || isAcceptedHelper) && ['matched', 'in_progress'].includes(post.status) && (
+            <div className="bg-surface-container-low rounded-3xl p-6 space-y-3">
+              <h2 className="font-bold text-lg">Help Progress</h2>
+              <p className="text-sm text-on-surface-variant">Helper completion: {post.coordination?.completed_by_helper_at ? 'marked complete' : 'pending'} · Requester confirmation: {post.coordination?.confirmed_by_poster_at ? 'confirmed' : 'pending'}</p>
+              {isAcceptedHelper && post.status === 'matched' && (
+                <button onClick={() => handleAction('start')} disabled={actionLoading === 'start'} className="w-full py-2.5 rounded-xl font-bold text-white text-sm disabled:opacity-50" style={{ background: '#2874F0' }}>Start Help</button>
+              )}
+              {isAcceptedHelper && !post.coordination?.completed_by_helper_at && (
+                <button onClick={() => handleAction('complete')} disabled={actionLoading === 'complete'} className="w-full py-2.5 rounded-xl font-bold text-white text-sm disabled:opacity-50" style={{ background: '#03A6A1' }}>Mark Complete</button>
+              )}
+              {isPoster && post.coordination?.completed_by_helper_at && (
+                <button onClick={() => handleAction('confirm-completion')} disabled={actionLoading === 'confirm-completion'} className="w-full py-2.5 rounded-xl font-bold text-white text-sm disabled:opacity-50" style={{ background: '#03A6A1' }}>Confirm Completed</button>
+              )}
+              <button onClick={() => handleAction('cancel', 'Cancel this help arrangement?')} className="w-full py-2 rounded-xl border-2 border-error/30 text-error font-bold text-sm">Cancel Arrangement</button>
+            </div>
+          )}
 
           {/* Responses */}
           {post.responses?.length > 0 && (

@@ -2,6 +2,24 @@ const express = require('express')
 const router = express.Router()
 const { protect } = require('../middleware/auth.middleware')
 const User = require('../models/User')
+const { redactLocation } = require('../utils/workflowAccess')
+
+const toPublicUser = (user) => {
+  if (!user) return user
+  const raw = user.toObject ? user.toObject() : user
+  return {
+    _id: raw._id,
+    name: raw.name,
+    avatar_url: raw.avatar_url,
+    verified: raw.verified,
+    bio: raw.bio,
+    skills: raw.skills || [],
+    interests: raw.interests || [],
+    trust_score: raw.trust_score,
+    location: redactLocation(raw.location, false),
+    createdAt: raw.createdAt
+  }
+}
 
 router.get('/me', protect, async (req, res) => {
   const user = await User.findById(req.user._id)
@@ -18,14 +36,14 @@ router.get('/', protect, async (req, res) => {
       { name: { $regex: q.trim(), $options: 'i' } },
       { email: { $regex: q.trim(), $options: 'i' } }
     ]
-  }).select('name email avatar_url verified').limit(Number(limit))
+  }).select('name avatar_url verified bio').limit(Number(limit))
   res.json({ success: true, data: users })
 })
 
 router.get('/:id', async (req, res) => {
-  const user = await User.findById(req.params.id).select('-__v')
+  const user = await User.findById(req.params.id).select('name avatar_url verified bio skills interests trust_score location createdAt')
   if (!user) return res.status(404).json({ success: false, message: 'User not found' })
-  res.json({ success: true, data: user })
+  res.json({ success: true, data: toPublicUser(user) })
 })
 
 router.patch('/me', protect, async (req, res) => {

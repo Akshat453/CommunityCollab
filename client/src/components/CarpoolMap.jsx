@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -43,7 +43,7 @@ function userPin() {
 
 function RecenterMap({ bounds }) {
   const map = useMap()
-  useEffect(() => { if (bounds?.length) { try { map.fitBounds(bounds, { padding: [40, 40] }) } catch {} } }, [bounds])
+  useEffect(() => { if (bounds?.length) { try { map.fitBounds(bounds, { padding: [40, 40] }) } catch { /* ignore invalid map bounds */ } } }, [bounds, map])
   return null
 }
 

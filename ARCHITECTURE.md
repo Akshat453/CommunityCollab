@@ -213,3 +213,24 @@ CommunityCollab/
 1. **User Authentication**: User logs in -> JWT token issued -> stored in `localStorage` -> attached to Axios authorization headers via interceptor.
 2. **Real-time Synchronization**: Socket Provider connects socket using JWT auth -> joins personal user room -> receives real-time badge awards, group buy notifications, and direct chat messages.
 3. **Group Buying Flow**: User creates/joins pool -> uploads receipt/proof image -> Host/Admin verifies proof -> Trust Engine recalculates trust scores -> Badge Engine awards community points.
+
+## 6. Real-World Workflow Completion Updates
+
+CommunityCollab now treats physical coordination as part of each transaction instead of leaving it to chat alone.
+
+- **Location privacy**: public list and map responses expose approximate city-level coordinates. Exact pickup/meeting locations and instructions are returned only to users already participating in the transaction.
+- **Group buying fulfilment**: pools support `common_pickup`, `individual_delivery`, and `digital` fulfilment methods. Common pickup stores pickup address, coordinates, landmark, instructions, and availability windows. Orderers can mark items ready for collection after order proof is submitted.
+- **Carpool coordination**: carpools require origin, destination, coordinates, future departure time, and seat count. Riders can provide a pickup point and note when booking. Seat counts are validated server-side.
+- **Resource handover**: approved borrow requests carry pickup/return instructions. Both owner and borrower confirm handover before the item is marked `in_possession`; borrower then marks return pending, and owner confirms final return before payment is allowed.
+- **Skill sessions**: accepting a skill connection now requires an agreed session time, duration, session mode, and either meeting link or in-person location.
+- **Assistance completion**: accepted help can move through matched -> in progress -> helper marked complete -> requester confirmed complete. Helper cancellation reopens rejected responses instead of dead-ending the post.
+- **Messaging access control**: REST chat history, REST message sending, socket room joining, and socket message sending all validate room membership against the backing transaction or DM participants.
+
+## 7. State Lifecycles
+
+- **Pool**: `open -> ordering -> ordered -> completed`, with `cancelled` as a terminal branch. Participant collection: `pending -> ready -> collected`.
+- **Carpool**: uses pool states for booking/payment, with server-side seat validation and rider pickup metadata.
+- **Resource request**: `pending -> approved -> in_possession -> return_pending -> returned -> payment_confirmed` for paid resources; free resources end at `returned`.
+- **Skill connection**: `pending -> accepted -> completed`, with `rejected` as terminal.
+- **Assistance**: `open -> matched -> in_progress -> completed`, with cancellation reopening the post when the accepted helper cancels.
+- **Event**: `published/ongoing -> completed/cancelled`, with joins blocked after start or when full.

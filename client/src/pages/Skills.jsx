@@ -142,6 +142,14 @@ export default function Skills() {
               <option value="paid">Paid</option>
               <option value="barter">Barter</option>
             </select>
+            <select value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none">
+              <option value="online">Online</option>
+              <option value="in_person">In person</option>
+              <option value="both">Online or in person</option>
+            </select>
+            {form.exchange_type === 'paid' && (
+              <input type="number" placeholder="₹ per hour" value={form.price_per_hour || ''} onChange={e => setForm({ ...form, price_per_hour: e.target.value })} min="0" className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+            )}
             <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="md:col-span-2 bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-24" />
             {(form.mode === 'in_person' || form.mode === 'both') && (
               <div className="md:col-span-2">

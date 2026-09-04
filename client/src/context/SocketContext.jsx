@@ -126,7 +126,6 @@ export function SocketProvider({ children }) {
 
   return (
     <SocketContext.Provider value={{
-      socket: socketRef.current,
       connected,
       joinRoom,
       leaveRoom,

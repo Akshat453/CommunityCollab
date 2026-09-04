@@ -5,6 +5,7 @@ const PoolRequest = require('../models/PoolRequest')
 const SkillListing = require('../models/SkillListing')
 const Resource = require('../models/Resource')
 const AssistancePost = require('../models/AssistancePost')
+const { approximateLocation } = require('../utils/workflowAccess')
 
 // Haversine distance in km
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -39,9 +40,10 @@ router.get('/pins', async (req, res) => {
     events.forEach(e => {
       if (!e.location?.lat || !e.location?.lng) return
       if (!withinRadius(e.location.lat, e.location.lng)) return
+      const loc = approximateLocation(e.location)
       results.push({
         type: 'event', id: e._id, title: e.title,
-        lat: e.location.lat, lng: e.location.lng,
+        lat: loc.lat, lng: loc.lng,
         meta: { category: e.category, starts_at: e.starts_at, registered_count: e.registered_count, max_volunteers: e.max_volunteers }
       })
     })
@@ -54,9 +56,10 @@ router.get('/pins', async (req, res) => {
     pools.forEach(p => {
       if (!p.location?.lat || !p.location?.lng) return
       if (!withinRadius(p.location.lat, p.location.lng)) return
+      const loc = approximateLocation(p.location)
       results.push({
         type: 'pool', id: p._id, title: p.title,
-        lat: p.location.lat, lng: p.location.lng,
+        lat: loc.lat, lng: loc.lng,
         meta: { pool_type: p.type, platform: p.platform, platform_custom_name: p.platform_custom_name }
       })
     })
@@ -69,9 +72,10 @@ router.get('/pins', async (req, res) => {
     skills.forEach(s => {
       if (!s.location?.lat || !s.location?.lng) return
       if (!withinRadius(s.location.lat, s.location.lng)) return
+      const loc = approximateLocation(s.location)
       results.push({
         type: 'skill', id: s._id, title: s.skill_name,
-        lat: s.location.lat, lng: s.location.lng,
+        lat: loc.lat, lng: loc.lng,
         meta: { listing_type: s.listing_type, category: s.skill_category }
       })
     })
@@ -84,9 +88,10 @@ router.get('/pins', async (req, res) => {
     resources.forEach(r => {
       if (!r.location?.lat || !r.location?.lng) return
       if (!withinRadius(r.location.lat, r.location.lng)) return
+      const loc = approximateLocation(r.location)
       results.push({
         type: 'resource', id: r._id, title: r.title,
-        lat: r.location.lat, lng: r.location.lng,
+        lat: loc.lat, lng: loc.lng,
         meta: { resource_type: r.type, is_free: r.is_free, price_per_day: r.price_per_day }
       })
     })
@@ -99,9 +104,10 @@ router.get('/pins', async (req, res) => {
     posts.forEach(p => {
       if (!p.location?.lat || !p.location?.lng) return
       if (!withinRadius(p.location.lat, p.location.lng)) return
+      const loc = approximateLocation(p.location)
       results.push({
         type: 'assistance', id: p._id, title: p.title,
-        lat: p.location.lat, lng: p.location.lng,
+        lat: loc.lat, lng: loc.lng,
         meta: { category: p.category, post_type: p.post_type, urgency: p.urgency }
       })
     })
@@ -165,8 +171,8 @@ router.get('/carpools', async (req, res) => {
       title: c.title,
       origin: cd.origin,
       destination: cd.destination_place,
-      origin_coords: cd.origin_coords,
-      destination_coords: cd.destination_coords,
+      origin_coords: approximateLocation(cd.origin_coords),
+      destination_coords: approximateLocation(cd.destination_coords),
       fare_per_seat: cd.fare_per_seat,
       total_seats: cd.total_seats,
       seats_left: seatsLeft,

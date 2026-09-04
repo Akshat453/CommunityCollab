@@ -34,6 +34,16 @@ router.get('/:id', async (req, res) => {
 })
 
 router.post('/', protect, async (req, res) => {
+  if (!req.body.title?.trim()) return res.status(400).json({ success: false, message: 'Title is required' })
+  if (!req.body.starts_at || new Date(req.body.starts_at) <= new Date()) {
+    return res.status(400).json({ success: false, message: 'Event start time must be in the future' })
+  }
+  if (req.body.ends_at && new Date(req.body.ends_at) <= new Date(req.body.starts_at)) {
+    return res.status(400).json({ success: false, message: 'Event end time must be after the start time' })
+  }
+  if (req.body.max_volunteers !== undefined && Number(req.body.max_volunteers) < 1) {
+    return res.status(400).json({ success: false, message: 'Volunteer capacity must be at least 1' })
+  }
   const event = await Event.create({ ...req.body, organizer: req.user._id })
   await addPoints(req.user._id, 30)
   res.status(201).json({ success: true, data: event })
@@ -43,7 +53,20 @@ router.patch('/:id', protect, async (req, res) => {
   const event = await Event.findById(req.params.id)
   if (!event) return res.status(404).json({ success: false, message: 'Event not found' })
   if (event.organizer.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Not authorized' })
-  Object.assign(event, req.body)
+  if (['completed', 'cancelled'].includes(event.status)) {
+    return res.status(400).json({ success: false, message: 'Completed or cancelled events cannot be edited' })
+  }
+  if (req.body.starts_at && new Date(req.body.starts_at) <= new Date()) {
+    return res.status(400).json({ success: false, message: 'Event start time must be in the future' })
+  }
+  if (req.body.ends_at && new Date(req.body.ends_at) <= new Date(req.body.starts_at || event.starts_at)) {
+    return res.status(400).json({ success: false, message: 'Event end time must be after the start time' })
+  }
+  if (req.body.max_volunteers !== undefined && Number(req.body.max_volunteers) < event.participants.filter(p => p.status !== 'cancelled').length) {
+    return res.status(400).json({ success: false, message: 'Volunteer capacity cannot be below current registrations' })
+  }
+  const allowed = ['title', 'description', 'category', 'cover_image_url', 'location', 'starts_at', 'ends_at', 'max_volunteers', 'status', 'resources_needed', 'tasks', 'tags']
+  allowed.forEach(field => { if (req.body[field] !== undefined) event[field] = req.body[field] })
   await event.save()
   res.json({ success: true, data: event })
 })
@@ -73,14 +96,44 @@ router.delete('/:id', protect, async (req, res) => {
 })
 
 router.post('/:id/join', protect, async (req, res) => {
-  const event = await Event.findById(req.params.id)
-  if (!event) return res.status(404).json({ success: false, message: 'Event not found' })
-  const already = event.participants.find(p => p.user.toString() === req.user._id.toString())
-  if (already) return res.status(400).json({ success: false, message: 'Already registered' })
-  if (event.max_volunteers && event.registered_count >= event.max_volunteers) return res.status(400).json({ success: false, message: 'Event is full' })
-  event.participants.push({ user: req.user._id, role: req.body.role || 'participant', registered_at: new Date() })
-  event.registered_count += 1
-  await event.save()
+  const existing = await Event.findById(req.params.id).select('_id')
+  if (!existing) return res.status(404).json({ success: false, message: 'Event not found' })
+
+  const activeParticipantsExpr = {
+    $filter: {
+      input: '$participants',
+      as: 'p',
+      cond: { $ne: ['$$p.status', 'cancelled'] }
+    }
+  }
+  const event = await Event.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      organizer: { $ne: req.user._id },
+      status: { $in: ['published', 'ongoing'] },
+      starts_at: { $gt: new Date() },
+      participants: {
+        $not: {
+          $elemMatch: {
+            user: req.user._id,
+            status: { $ne: 'cancelled' }
+          }
+        }
+      },
+      $expr: {
+        $or: [
+          { $eq: ['$max_volunteers', null] },
+          { $lt: [{ $size: activeParticipantsExpr }, '$max_volunteers'] }
+        ]
+      }
+    },
+    {
+      $push: { participants: { user: req.user._id, role: req.body.role || 'participant', registered_at: new Date() } },
+      $inc: { registered_count: 1 }
+    },
+    { new: true, runValidators: true }
+  )
+  if (!event) return res.status(409).json({ success: false, message: 'Event is full or no longer accepting registrations' })
   await addPoints(req.user._id, 10)
   notifyUser(event.organizer.toString(), 'event:new_participant', { eventId: event._id, user: req.user.name })
 
@@ -104,7 +157,8 @@ router.post('/:id/join', protect, async (req, res) => {
 router.post('/:id/leave', protect, async (req, res) => {
   const event = await Event.findById(req.params.id)
   if (!event) return res.status(404).json({ success: false, message: 'Event not found' })
-  const idx = event.participants.findIndex(p => p.user.toString() === req.user._id.toString())
+  if (new Date(event.starts_at) <= new Date()) return res.status(400).json({ success: false, message: 'Cannot leave after the event has started' })
+  const idx = event.participants.findIndex(p => p.user.toString() === req.user._id.toString() && p.status !== 'cancelled')
   if (idx === -1) return res.status(400).json({ success: false, message: 'Not registered' })
   event.participants.splice(idx, 1)
   event.registered_count = Math.max(0, event.registered_count - 1)

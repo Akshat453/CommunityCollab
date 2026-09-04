@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import TrustBadge from '../components/TrustBadge'
+import LocationPicker from '../components/LocationPicker'
 
 const PLATFORM_META = {
   blinkit:  { label: 'Blinkit',  color: '#F8D000', icon: '⚡' },
@@ -73,6 +74,10 @@ export default function PoolDetail() {
   // Carpool join
   const [seatsRequested, setSeatsRequested] = useState(1)
   const [showJoinModal, setShowJoinModal] = useState(false)
+  const [pickupPoint, setPickupPoint] = useState({})
+  const [pickupInstructions, setPickupInstructions] = useState('')
+  const [readyForm, setReadyForm] = useState({ location: {}, landmark: '', instructions: '', available_from: '', available_until: '' })
+  const [markingReady, setMarkingReady] = useState(false)
 
   // Razorpay
   const [payingRazorpay, setPayingRazorpay] = useState(false)
@@ -109,8 +114,13 @@ export default function PoolDetail() {
   const handleJoin = async (seats = 1) => {
     setJoining(true)
     try {
-      await api.post(`/pools/${id}/join`, { seats_requested: seats })
+      await api.post(`/pools/${id}/join`, {
+        seats_requested: seats,
+        pickup_point: isCarpool ? { ...pickupPoint, instructions: pickupInstructions } : undefined
+      })
       setShowJoinModal(false)
+      setPickupPoint({})
+      setPickupInstructions('')
       fetchPool()
     } catch (err) { alert(err.response?.data?.message || 'Failed to join') }
     finally { setJoining(false) }
@@ -307,6 +317,21 @@ export default function PoolDetail() {
     finally { setConfirmingPayment(null) }
   }
 
+  const handleReadyForCollection = async () => {
+    setMarkingReady(true)
+    try {
+      await api.patch(`/pools/${id}/ready-for-collection`, {
+        pickup_location: readyForm.location?.lat ? readyForm.location : undefined,
+        landmark: readyForm.landmark,
+        instructions: readyForm.instructions,
+        available_from: readyForm.available_from || undefined,
+        available_until: readyForm.available_until || undefined
+      })
+      fetchPool()
+    } catch (err) { alert(err.response?.data?.message || 'Failed to mark ready') }
+    finally { setMarkingReady(false) }
+  }
+
   if (loading) return (
     <div className="max-w-4xl mx-auto flex justify-center py-32">
       <span className="material-symbols-outlined text-primary text-5xl animate-spin">progress_activity</span>
@@ -335,7 +360,6 @@ export default function PoolDetail() {
   const platformMeta = isCarpool ? { color: '#6366F1', icon: '🚗', label: 'Carpool' } : (PLATFORM_META[pool.platform] || PLATFORM_META.custom)
   const platformLabel = isCarpool ? 'Carpool' : (pool.platform === 'custom' ? (pool.platform_custom_name || 'Custom') : platformMeta.label)
 
-  const myItems = items.filter(i => (i.added_by?._id || i.added_by) === user?._id)
   const mySeats = myParticipantData?.seats_requested || 1
   const myFare = isCarpool && pool.carpool_details?.fare_per_seat ? pool.carpool_details.fare_per_seat * mySeats : 0
 
@@ -380,6 +404,18 @@ export default function PoolDetail() {
                 <p className="text-2xl font-extrabold" style={{ color: '#6366F1' }}>₹{(pool.carpool_details.fare_per_seat * seatsRequested).toFixed(0)}</p>
               </div>
             )}
+            <LocationPicker
+              label="Your pickup point"
+              placeholder="Where should the driver pick you up?"
+              value={pickupPoint.address || ''}
+              onChange={(loc) => setPickupPoint(loc)}
+            />
+            <textarea
+              placeholder="Pickup note (gate, landmark, phone timing...)"
+              value={pickupInstructions}
+              onChange={e => setPickupInstructions(e.target.value)}
+              className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 outline-none mb-4 mt-3 resize-none h-20"
+            />
             <div className="flex gap-3">
               <button onClick={() => handleJoin(seatsRequested)} disabled={joining || seatsRequested < 1 || seatsRequested > seatsLeft}
                 className="flex-1 py-3 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50"
@@ -527,9 +563,15 @@ export default function PoolDetail() {
                     </div>
                   </div>
                   {isJoined && (
-                    <div className="rounded-xl p-3" style={{ background: '#EEF2FF' }}>
+                  <div className="rounded-xl p-3" style={{ background: '#EEF2FF' }}>
                       <p className="text-xs font-bold mb-1" style={{ color: '#6366F1' }}>Your Booking</p>
                       <p className="text-sm">Seats: <strong>{mySeats}</strong> · Total Fare: <strong>₹{myFare.toFixed(0)}</strong></p>
+                    </div>
+                  )}
+                  {isJoined && pool.carpool_details?.pickup_instructions && (
+                    <div className="rounded-xl p-3 bg-surface-container">
+                      <p className="text-xs font-bold text-on-surface-variant mb-1">Pickup instructions</p>
+                      <p className="text-sm">{pool.carpool_details.pickup_instructions}</p>
                     </div>
                   )}
                 </div>
@@ -554,6 +596,27 @@ export default function PoolDetail() {
                       <p className="text-sm font-bold">{pool.destination}</p>
                       <p className="text-xs text-on-surface-variant">Delivery / Pickup</p>
                     </div>
+                  </div>
+                )}
+                {pool.fulfilment && (
+                  <div className="rounded-2xl bg-surface-container p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-bold">
+                        {pool.fulfilment.method === 'digital' ? 'Digital delivery' : pool.fulfilment.method === 'individual_delivery' ? 'Individual arrangement' : 'Common pickup'}
+                      </p>
+                      {pool.fulfilment.ready_at && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">Ready</span>}
+                    </div>
+                    {pool.fulfilment.pickup_location?.address && <p className="text-sm">{pool.fulfilment.pickup_location.address}</p>}
+                    {pool.fulfilment.landmark && <p className="text-xs text-on-surface-variant">Landmark: {pool.fulfilment.landmark}</p>}
+                    {pool.fulfilment.instructions && <p className="text-xs text-on-surface-variant">{pool.fulfilment.instructions}</p>}
+                    {(pool.fulfilment.available_from || pool.fulfilment.available_until) && (
+                      <p className="text-xs font-medium">Window: {pool.fulfilment.available_from ? new Date(pool.fulfilment.available_from).toLocaleString() : 'Now'} {pool.fulfilment.available_until ? `to ${new Date(pool.fulfilment.available_until).toLocaleString()}` : ''}</p>
+                    )}
+                    {pool.fulfilment.directions_url && (
+                      <a href={pool.fulfilment.directions_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-primary">
+                        <span className="material-symbols-outlined text-sm">directions</span> Open directions
+                      </a>
+                    )}
                   </div>
                 )}
                 {pool.scheduled_at && (
@@ -924,6 +987,27 @@ export default function PoolDetail() {
                 </div>
               )}
 
+              {isOrderer && !isCarpool && pool.status === 'ordered' && !pool.fulfilment?.ready_at && (
+                <div className="bg-surface-container-low rounded-3xl p-6 space-y-3">
+                  <h2 className="font-bold text-lg">Mark Items Ready</h2>
+                  <LocationPicker
+                    label="Pickup location"
+                    placeholder="Confirm where participants should collect items"
+                    value={readyForm.location?.address || pool.fulfilment?.pickup_location?.address || ''}
+                    onChange={(loc) => setReadyForm({ ...readyForm, location: loc })}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input type="datetime-local" value={readyForm.available_from} onChange={e => setReadyForm({ ...readyForm, available_from: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                    <input type="datetime-local" value={readyForm.available_until} onChange={e => setReadyForm({ ...readyForm, available_until: e.target.value })} className="bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                  </div>
+                  <input type="text" placeholder="Landmark" value={readyForm.landmark} onChange={e => setReadyForm({ ...readyForm, landmark: e.target.value })} className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none" />
+                  <textarea placeholder="Collection instructions" value={readyForm.instructions} onChange={e => setReadyForm({ ...readyForm, instructions: e.target.value })} className="w-full bg-surface-container rounded-xl px-4 py-3 text-sm border-none focus:ring-2 focus:ring-primary/30 outline-none resize-none h-20" />
+                  <button onClick={handleReadyForCollection} disabled={markingReady} className="px-6 py-2.5 rounded-xl font-bold text-white text-sm shadow-lg disabled:opacity-50" style={{ background: '#03A6A1' }}>
+                    {markingReady ? 'Saving...' : 'Items Are Ready for Pickup'}
+                  </button>
+                </div>
+              )}
+
               {/* Payment Section — Razorpay primary, UTR fallback */}
               {isJoined && ['ordered', 'completed'].includes(pool.status) && myParticipantData && (
                 <div className="bg-surface-container-low rounded-3xl p-6">
@@ -958,8 +1042,17 @@ export default function PoolDetail() {
                     </div>
                   )}
 
+                  {/* Unpaid before collection */}
+                  {myParticipantData.payment_status === 'unpaid' && !myParticipantData.delivery_confirmed && (
+                    <div className="rounded-xl p-4 text-center" style={{ background: '#FFF8E1' }}>
+                      <span className="material-symbols-outlined text-3xl mb-2" style={{ color: '#F57F17' }}>inventory_2</span>
+                      <p className="font-bold text-sm" style={{ color: '#F57F17' }}>Confirm collection before paying</p>
+                      <p className="text-xs text-on-surface-variant mt-1">Payment opens after you mark your items received.</p>
+                    </div>
+                  )}
+
                   {/* Unpaid — Razorpay primary + UTR fallback */}
-                  {myParticipantData.payment_status === 'unpaid' && (
+                  {myParticipantData.payment_status === 'unpaid' && myParticipantData.delivery_confirmed && (
                     <div className="space-y-4">
                       {/* Amount to pay */}
                       {(isCarpool ? myFare > 0 : totalEstimated > 0) && (

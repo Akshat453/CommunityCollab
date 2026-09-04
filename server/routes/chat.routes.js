@@ -4,6 +4,7 @@ const mongoose = require('mongoose')
 const { protect } = require('../middleware/auth.middleware')
 const Message = require('../models/Message')
 const User = require('../models/User')
+const { canAccessRoom } = require('../utils/workflowAccess')
 
 // GET /chat/rooms — rooms the logged-in user participates in, with last message + partner info
 router.get('/rooms', protect, async (req, res) => {
@@ -68,7 +69,11 @@ router.get('/rooms', protect, async (req, res) => {
 // GET /chat/:room — message history for a room (newest-last, paginated)
 router.get('/:room', protect, async (req, res) => {
   const { page = 1, limit = 50 } = req.query
-  const messages = await Message.find({ room: req.params.room })
+  const room = req.params.room
+  const allowed = await canAccessRoom(room, req.user._id)
+  if (!allowed) return res.status(403).json({ success: false, message: 'You do not have access to this conversation' })
+
+  const messages = await Message.find({ room })
     .populate('sender', 'name avatar_url verified')
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
@@ -78,6 +83,8 @@ router.get('/:room', protect, async (req, res) => {
 
 // POST /chat — send a message via REST (fallback; prefer socket)
 router.post('/', protect, async (req, res) => {
+  const allowed = await canAccessRoom(req.body.room, req.user._id)
+  if (!allowed) return res.status(403).json({ success: false, message: 'You do not have access to this conversation' })
   const message = await Message.create({ ...req.body, sender: req.user._id })
   const populated = await message.populate('sender', 'name avatar_url')
   res.status(201).json({ success: true, data: populated })

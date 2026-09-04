@@ -8,6 +8,17 @@ const { addPoints } = require('../utils/badgeEngine')
 const { recalculateTrustScore } = require('../utils/trustEngine')
 const { notifyUser } = require('../sockets/socket')
 const { sendMail, skillConnectionEmail } = require('../utils/mailer')
+const { redactLocation } = require('../utils/workflowAccess')
+
+const isValidUtr = (value) => /^[A-Za-z0-9][A-Za-z0-9-]{5,35}$/.test(String(value || '').trim())
+const isValidHttpUrl = (value) => {
+  try {
+    const parsed = new URL(value)
+    return ['http:', 'https:'].includes(parsed.protocol)
+  } catch {
+    return false
+  }
+}
 
 router.get('/', async (req, res) => {
   const { q, category, mode, exchange_type, listing_type, page = 1, limit = 20 } = req.query
@@ -23,7 +34,7 @@ router.get('/', async (req, res) => {
   ]
   const total = await SkillListing.countDocuments(filter)
   const skills = await SkillListing.find(filter).populate('user', 'name avatar_url verified rating trust_score trust_level').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(Number(limit))
-  res.json({ success: true, data: skills, total, page: Number(page), pages: Math.ceil(total / limit) })
+  res.json({ success: true, data: skills.map(skill => ({ ...skill.toObject(), location: redactLocation(skill.location, false) })), total, page: Number(page), pages: Math.ceil(total / limit) })
 })
 
 router.get('/mutual-matches', protect, async (req, res) => {
@@ -49,10 +60,17 @@ router.get('/connections', protect, async (req, res) => {
 router.get('/:id', async (req, res) => {
   const skill = await SkillListing.findById(req.params.id).populate('user', 'name avatar_url verified rating bio skills location trust_score trust_level')
   if (!skill) return res.status(404).json({ success: false, message: 'Skill listing not found' })
-  res.json({ success: true, data: skill })
+  const obj = skill.toObject()
+  obj.location = redactLocation(obj.location, false)
+  if (obj.user?.location) obj.user.location = redactLocation(obj.user.location, false)
+  res.json({ success: true, data: obj })
 })
 
 router.post('/', protect, async (req, res) => {
+  if (!req.body.skill_name?.trim()) return res.status(400).json({ success: false, message: 'Skill name is required' })
+  if (['in_person', 'both'].includes(req.body.mode) && !req.body.location?.city && !req.body.location?.address) {
+    return res.status(400).json({ success: false, message: 'A city or meetup area is required for in-person skills' })
+  }
   const listing = await SkillListing.create({ ...req.body, user: req.user._id })
   await addPoints(req.user._id, 15)
   res.status(201).json({ success: true, data: listing })
@@ -126,8 +144,25 @@ router.patch('/connections/:id/accept', protect, async (req, res) => {
   if (connection.teacher.toString() !== req.user._id.toString()) {
     return res.status(403).json({ success: false, message: 'Only the teacher can accept' })
   }
+  if (connection.status !== 'pending') return res.status(400).json({ success: false, message: 'Only pending requests can be accepted' })
+
+  const { scheduled_at, duration_minutes, session_mode, meeting_link, meeting_location, session_notes } = req.body
+  const resolvedMode = session_mode || (connection.listing.mode === 'online' ? 'online' : 'in_person')
+  if (!scheduled_at) return res.status(400).json({ success: false, message: 'Session date and time are required' })
+  if (new Date(scheduled_at) <= new Date()) return res.status(400).json({ success: false, message: 'Session time must be in the future' })
+  if (resolvedMode === 'online' && !meeting_link) return res.status(400).json({ success: false, message: 'Meeting link is required for online sessions' })
+  if (resolvedMode === 'online' && !isValidHttpUrl(meeting_link)) return res.status(400).json({ success: false, message: 'Meeting link must be a valid web URL' })
+  if (resolvedMode === 'in_person' && !meeting_location?.address && !meeting_location?.city && !connection.listing.location?.city) {
+    return res.status(400).json({ success: false, message: 'Meeting location is required for in-person sessions' })
+  }
 
   connection.status = 'accepted'
+  connection.scheduled_at = scheduled_at
+  connection.duration_minutes = duration_minutes || 60
+  connection.session_mode = resolvedMode
+  connection.meeting_link = resolvedMode === 'online' ? meeting_link : ''
+  connection.meeting_location = resolvedMode === 'in_person' ? (meeting_location || connection.listing.location) : undefined
+  connection.session_notes = session_notes || ''
   await connection.save()
 
   notifyUser(connection.learner._id.toString(), 'skill:connection_accepted', {
@@ -250,10 +285,19 @@ router.post('/connections/:id/submit-utr', protect, async (req, res) => {
   if (connection.learner.toString() !== req.user._id.toString()) {
     return res.status(403).json({ success: false, message: 'Only the learner can submit UTR' })
   }
+  if (connection.exchange_type !== 'paid') return res.status(400).json({ success: false, message: 'This session does not require payment' })
+  if (connection.payment_status === 'paid') return res.json({ success: true, message: 'Payment already confirmed' })
+  if (connection.payment_status === 'utr_submitted') return res.json({ success: true, message: 'UTR already submitted' })
   if (connection.status !== 'completed') return res.status(400).json({ success: false, message: 'Complete the session before paying' })
 
   const { utr_number } = req.body
-  if (!utr_number) return res.status(400).json({ success: false, message: 'UTR number is required' })
+  if (!isValidUtr(utr_number)) return res.status(400).json({ success: false, message: 'Enter a valid UTR number' })
+  const duplicateUtr = await SkillConnection.exists({
+    _id: { $ne: connection._id },
+    teacher: connection.teacher,
+    utr_number: new RegExp(`^${String(utr_number).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+  })
+  if (duplicateUtr) return res.status(400).json({ success: false, message: 'This UTR has already been submitted to this teacher' })
 
   connection.utr_number = utr_number
   connection.utr_submitted_at = new Date()
@@ -280,6 +324,9 @@ router.patch('/connections/:id/confirm-payment', protect, async (req, res) => {
   if (connection.teacher.toString() !== req.user._id.toString()) {
     return res.status(403).json({ success: false, message: 'Only the teacher can confirm payment' })
   }
+  if (connection.exchange_type !== 'paid') return res.status(400).json({ success: false, message: 'This session does not require payment' })
+  if (connection.payment_status === 'paid') return res.json({ success: true, message: 'Payment already confirmed' })
+  if (connection.payment_status !== 'utr_submitted') return res.status(400).json({ success: false, message: 'Learner must submit a UTR first' })
 
   connection.payment_confirmed_by_teacher = true
   connection.payment_confirmed_at = new Date()

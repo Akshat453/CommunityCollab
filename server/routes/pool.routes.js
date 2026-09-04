@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { protect } = require('../middleware/auth.middleware')
+const { protect, optionalProtect } = require('../middleware/auth.middleware')
 const PoolRequest = require('../models/PoolRequest')
 const PoolItem = require('../models/PoolItem')
 const Notification = require('../models/Notification')
@@ -13,7 +13,10 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 const crypto = require('crypto')
+const dns = require('dns').promises
+const net = require('net')
 const Razorpay = require('razorpay')
+const { isPoolMember, redactLocation, directionsUrl } = require('../utils/workflowAccess')
 
 // ─── RAZORPAY INIT ──────────────────────────────────────────
 const razorpay = new Razorpay({
@@ -52,13 +55,90 @@ const isPoolCreator = (pool, userId) =>
 const activeCount = (pool) =>
   pool.participants.filter(p => p.status !== 'cancelled').length
 
+const seatsUsed = (pool) =>
+  pool.participants
+    .filter(p => p.status !== 'cancelled')
+    .reduce((sum, p) => sum + (p.seats_requested || 1), 0)
+
+const isValidCoordinate = (coords) =>
+  coords &&
+  Number.isFinite(Number(coords.lat)) &&
+  Number.isFinite(Number(coords.lng)) &&
+  Number(coords.lat) >= -90 &&
+  Number(coords.lat) <= 90 &&
+  Number(coords.lng) >= -180 &&
+  Number(coords.lng) <= 180
+
+const isValidUtr = (value) => /^[A-Za-z0-9][A-Za-z0-9-]{5,35}$/.test(String(value || '').trim())
+
+const isPrivateAddress = (address) => {
+  const version = net.isIP(address)
+  if (version === 4) {
+    const parts = address.split('.').map(Number)
+    return parts[0] === 10 ||
+      parts[0] === 127 ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 169 && parts[1] === 254) ||
+      address === '0.0.0.0'
+  }
+  if (version === 6) {
+    const normalized = address.toLowerCase()
+    return normalized === '::1' ||
+      normalized === '::' ||
+      normalized.startsWith('fc') ||
+      normalized.startsWith('fd') ||
+      normalized.startsWith('fe80:')
+  }
+  return true
+}
+
+const getSafeFetchUrl = async (url) => {
+  const parsed = new URL(url)
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported URL protocol')
+  const hostname = parsed.hostname.toLowerCase()
+  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) {
+    throw new Error('Private hosts are not allowed')
+  }
+  const addresses = net.isIP(hostname)
+    ? [{ address: hostname }]
+    : await dns.lookup(hostname, { all: true })
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw new Error('Private network addresses are not allowed')
+  }
+  return parsed.toString()
+}
+
+const toResponsePool = (pool, userId) => {
+  const obj = pool.toObject()
+  const canViewExact = userId && isPoolMember(pool, userId)
+  obj.location = redactLocation(obj.location, canViewExact)
+  if (obj.fulfilment?.pickup_location) {
+    obj.fulfilment.pickup_location = redactLocation(obj.fulfilment.pickup_location, canViewExact)
+    obj.fulfilment.directions_url = canViewExact ? directionsUrl(obj.fulfilment.pickup_location) : null
+    if (!canViewExact) {
+      delete obj.fulfilment.instructions
+      delete obj.fulfilment.landmark
+    }
+  }
+  if (obj.type === 'carpool' && !canViewExact) {
+    delete obj.carpool_details?.pickup_instructions
+    delete obj.carpool_details?.dropoff_instructions
+    obj.participants = obj.participants?.map(p => ({ ...p, pickup_point: undefined }))
+  }
+  return obj
+}
+
 // ─── UTILITY: FETCH PRODUCT METADATA FROM URL ─────────────
 const fetchProductMeta = async (url) => {
   try {
     const axios = require('axios')
     const cheerio = require('cheerio')
-    const res = await axios.get(url, {
+    const safeUrl = await getSafeFetchUrl(url)
+    const res = await axios.get(safeUrl, {
       timeout: 5000,
+      maxRedirects: 0,
+      maxContentLength: 512 * 1024,
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CommunityCollab/1.0)' }
     })
     const $ = cheerio.load(res.data)
@@ -82,7 +162,7 @@ const fetchProductMeta = async (url) => {
 // ════════════════════════════════════════════════
 
 // GET /api/v1/pools — list all pools
-router.get('/', async (req, res) => {
+router.get('/', optionalProtect, async (req, res) => {
   const { type, status, platform, tags, q, page = 1, limit = 20 } = req.query
   const filter = {}
   if (type && type !== 'all') filter.type = type
@@ -114,7 +194,7 @@ router.get('/', async (req, res) => {
   itemCounts.forEach(c => { countMap[c._id.toString()] = c.count })
 
   const enriched = pools.map(p => {
-    const obj = p.toObject()
+    const obj = toResponsePool(p, req.user?._id)
     obj.item_count = countMap[p._id.toString()] || 0
     obj.active_participants = p.participants.filter(pt => pt.status !== 'cancelled').length
     return obj
@@ -133,7 +213,7 @@ router.post('/fetch-meta', protect, async (req, res) => {
 })
 
 // GET /api/v1/pools/:id — pool detail with items
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalProtect, async (req, res) => {
   const pool = await PoolRequest.findById(req.params.id)
     .populate('creator', 'name avatar_url verified community_points trust_score trust_level')
     .populate('designated_orderer', 'name avatar_url')
@@ -179,8 +259,12 @@ router.get('/:id', async (req, res) => {
     }
   })
 
-  const poolObj = pool.toObject()
+  const poolObj = toResponsePool(pool, req.user?._id)
   poolObj.active_participants = activeCount(pool)
+  if (pool.type === 'carpool') {
+    poolObj.seats_used = seatsUsed(pool)
+    poolObj.seats_left = Math.max(0, (pool.carpool_details?.total_seats || pool.max_participants) - seatsUsed(pool))
+  }
 
   res.json({
     success: true,
@@ -200,8 +284,13 @@ router.post('/', protect, async (req, res) => {
   const {
     title, description, platform, platform_custom_name, platform_base_url,
     type, destination, scheduled_at, max_participants, is_public, tags, location,
-    carpool_details
+    carpool_details, fulfilment
   } = req.body
+
+  if (!title?.trim()) return res.status(400).json({ success: false, message: 'Title is required' })
+  if (type !== 'carpool' && Number(max_participants || 10) < 2) {
+    return res.status(400).json({ success: false, message: 'A shared pool needs at least 2 spots' })
+  }
 
   const poolData = {
     creator: req.user._id,
@@ -218,6 +307,14 @@ router.post('/', protect, async (req, res) => {
     is_public: is_public !== false,
     tags: tags || [],
     location,
+    fulfilment: type === 'carpool' ? undefined : {
+      method: fulfilment?.method || 'common_pickup',
+      pickup_location: fulfilment?.pickup_location || location || (destination ? { address: destination } : undefined),
+      landmark: fulfilment?.landmark || '',
+      instructions: fulfilment?.instructions || '',
+      available_from: fulfilment?.available_from || scheduled_at || undefined,
+      available_until: fulfilment?.available_until || undefined
+    },
     participants: [{
       user: req.user._id,
       joined_at: new Date(),
@@ -227,13 +324,33 @@ router.post('/', protect, async (req, res) => {
   }
 
   // Attach carpool details if this is a carpool pool
+  if (type === 'carpool' && !carpool_details) {
+    return res.status(400).json({ success: false, message: 'Carpool details are required' })
+  }
   if (type === 'carpool' && carpool_details) {
+    if (!carpool_details.origin || !carpool_details.destination_place || !carpool_details.departure_time) {
+      return res.status(400).json({ success: false, message: 'Origin, destination, and departure time are required for carpools' })
+    }
+    if (!isValidCoordinate(carpool_details.origin_coords) || !isValidCoordinate(carpool_details.destination_coords)) {
+      return res.status(400).json({ success: false, message: 'Origin and destination map points are required for carpools' })
+    }
+    if (!Number.isInteger(Number(carpool_details.total_seats)) || Number(carpool_details.total_seats) < 1 || Number(carpool_details.total_seats) > 12) {
+      return res.status(400).json({ success: false, message: 'At least one passenger seat is required' })
+    }
+    if (Number(carpool_details.fare_per_seat || 0) < 0) {
+      return res.status(400).json({ success: false, message: 'Fare cannot be negative' })
+    }
+    if (new Date(carpool_details.departure_time) <= new Date()) {
+      return res.status(400).json({ success: false, message: 'Departure time must be in the future' })
+    }
     poolData.carpool_details = {
       origin: carpool_details.origin,
       destination_place: carpool_details.destination_place,
       fare_per_seat: carpool_details.fare_per_seat,
       total_seats: carpool_details.total_seats,
       departure_time: carpool_details.departure_time,
+      pickup_instructions: carpool_details.pickup_instructions || '',
+      dropoff_instructions: carpool_details.dropoff_instructions || '',
       // Geo coords for map/route matching — sent as { lat, lng }
       origin_coords: carpool_details.origin_coords || null,
       destination_coords: carpool_details.destination_coords || null
@@ -242,6 +359,8 @@ router.post('/', protect, async (req, res) => {
     if (carpool_details.total_seats && !max_participants) {
       poolData.max_participants = carpool_details.total_seats
     }
+  } else if (poolData.fulfilment.method === 'common_pickup' && !poolData.fulfilment.pickup_location?.address && !destination) {
+    return res.status(400).json({ success: false, message: 'Pickup location is required for common pickup pools' })
   }
 
   const pool = await PoolRequest.create(poolData)
@@ -252,40 +371,97 @@ router.post('/', protect, async (req, res) => {
 
 // POST /api/v1/pools/:id/join
 router.post('/:id/join', protect, async (req, res) => {
-  const pool = await PoolRequest.findById(req.params.id)
+  const currentPool = await PoolRequest.findById(req.params.id)
     .populate('creator', 'name email')
 
-  if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
-  if (pool.status !== 'open') return res.status(400).json({ success: false, message: 'This pool is no longer accepting participants' })
+  if (!currentPool) return res.status(404).json({ success: false, message: 'Pool not found' })
+  if (currentPool.status !== 'open') return res.status(400).json({ success: false, message: 'This pool is no longer accepting participants' })
 
-  const alreadyJoined = isParticipant(pool, req.user._id)
+  const alreadyJoined = isParticipant(currentPool, req.user._id)
   if (alreadyJoined) return res.status(400).json({ success: false, message: 'You have already joined this pool' })
 
-  const count = activeCount(pool)
-  if (count >= pool.max_participants) {
-    return res.status(400).json({ success: false, message: 'Pool is full' })
-  }
-
-  const { seats_requested } = req.body
+  const { seats_requested, pickup_point } = req.body
   const seats = Number(seats_requested) || 1
-
-  // For carpools, check if enough seats remain
-  if (pool.type === 'carpool' && pool.carpool_details?.total_seats) {
-    const seatsUsed = pool.participants
-      .filter(p => p.status !== 'cancelled')
-      .reduce((sum, p) => sum + (p.seats_requested || 1), 0)
-    if (seatsUsed + seats > pool.carpool_details.total_seats) {
-      return res.status(400).json({ success: false, message: `Only ${pool.carpool_details.total_seats - seatsUsed} seat(s) remaining` })
+  if (!Number.isInteger(seats) || seats < 1 || seats > 8) {
+    return res.status(400).json({ success: false, message: 'Seat count must be a whole number between 1 and 8' })
+  }
+  if (currentPool.type === 'carpool') {
+    if (isPoolCreator(currentPool, req.user._id)) {
+      return res.status(400).json({ success: false, message: 'Drivers are already part of their own carpool' })
+    }
+    if (new Date(currentPool.carpool_details?.departure_time) <= new Date()) {
+      return res.status(400).json({ success: false, message: 'This carpool has already departed' })
+    }
+    if (pickup_point && !isValidCoordinate(pickup_point)) {
+      return res.status(400).json({ success: false, message: 'Pickup point coordinates are invalid' })
     }
   }
 
-  pool.participants.push({
+  const participantData = {
     user: req.user._id,
     joined_at: new Date(),
     status: 'confirmed',
-    seats_requested: seats
-  })
-  await pool.save()
+    seats_requested: seats,
+    pickup_point: currentPool.type === 'carpool' ? pickup_point : undefined
+  }
+
+  const activeParticipantsExpr = {
+    $filter: {
+      input: '$participants',
+      as: 'p',
+      cond: { $ne: ['$$p.status', 'cancelled'] }
+    }
+  }
+  const filter = {
+    _id: currentPool._id,
+    status: 'open',
+    participants: {
+      $not: {
+        $elemMatch: {
+          user: req.user._id,
+          status: { $ne: 'cancelled' }
+        }
+      }
+    }
+  }
+
+  if (currentPool.type === 'carpool') {
+    filter.creator = { $ne: req.user._id }
+    filter['carpool_details.departure_time'] = { $gt: new Date() }
+    filter.$expr = {
+      $lte: [
+        {
+          $add: [
+            {
+              $sum: {
+                $map: {
+                  input: activeParticipantsExpr,
+                  as: 'p',
+                  in: { $ifNull: ['$$p.seats_requested', 1] }
+                }
+              }
+            },
+            seats
+          ]
+        },
+        '$carpool_details.total_seats'
+      ]
+    }
+  } else {
+    filter.$expr = { $lt: [{ $size: activeParticipantsExpr }, '$max_participants'] }
+  }
+
+  const pool = await PoolRequest.findOneAndUpdate(
+    filter,
+    { $push: { participants: participantData } },
+    { new: true, runValidators: true }
+  )
+    .populate('creator', 'name email')
+    .populate('participants.user', 'name avatar_url')
+
+  if (!pool) {
+    return res.status(409).json({ success: false, message: 'Pool is full or no longer accepting participants' })
+  }
 
   await addPoints(req.user._id, 10)
 
@@ -337,6 +513,9 @@ router.post('/:id/join', protect, async (req, res) => {
 router.post('/:id/leave', protect, async (req, res) => {
   const pool = await PoolRequest.findById(req.params.id)
   if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
+  if (pool.status !== 'open') {
+    return res.status(400).json({ success: false, message: 'Participants can only leave before the pool is locked' })
+  }
   if (isPoolCreator(pool, req.user._id)) {
     return res.status(400).json({ success: false, message: 'Pool creator cannot leave. Cancel the pool instead.' })
   }
@@ -373,10 +552,15 @@ router.patch('/:id', protect, async (req, res) => {
   if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
   if (!isPoolCreator(pool, req.user._id)) return res.status(403).json({ success: false, message: 'Only the pool creator can edit this pool' })
 
-  const allowed = ['title', 'description', 'destination', 'scheduled_at', 'max_participants', 'is_public', 'tags', 'status', 'designated_orderer', 'platform_custom_name']
+  if (pool.status !== 'open') return res.status(400).json({ success: false, message: 'Only open pools can be edited' })
+
+  const allowed = ['title', 'description', 'destination', 'scheduled_at', 'max_participants', 'is_public', 'tags', 'designated_orderer', 'platform_custom_name', 'fulfilment']
   allowed.forEach(field => {
     if (req.body[field] !== undefined) pool[field] = req.body[field]
   })
+  if (Number(pool.max_participants) < activeCount(pool)) {
+    return res.status(400).json({ success: false, message: 'Max participants cannot be below the current participant count' })
+  }
   await pool.save()
   res.json({ success: true, data: pool, message: 'Pool updated' })
 })
@@ -388,6 +572,7 @@ router.delete('/:id', protect, async (req, res) => {
 
   if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
   if (!isPoolCreator(pool, req.user._id)) return res.status(403).json({ success: false, message: 'Only the creator can cancel this pool' })
+  if (pool.status === 'cancelled') return res.json({ success: true, message: 'Pool already cancelled' })
 
   pool.status = 'cancelled'
   await pool.save()
@@ -659,6 +844,9 @@ router.patch('/:id/items/:itemId/status', protect, async (req, res) => {
   if (!isOrderer) return res.status(403).json({ success: false, message: 'Only the orderer can update item status' })
 
   const { status, orderer_note, substitution_link, substitution_name } = req.body
+  if (!['pending', 'ordered', 'out_of_stock', 'substituted', 'delivered'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'Invalid item status' })
+  }
   const item = await PoolItem.findById(req.params.itemId)
   if (!item) return res.status(404).json({ success: false, message: 'Item not found' })
 
@@ -679,6 +867,52 @@ router.patch('/:id/items/:itemId/status', protect, async (req, res) => {
   res.json({ success: true, data: item, message: 'Item status updated' })
 })
 
+// PATCH /api/v1/pools/:id/ready-for-collection — orderer marks pickup ready
+router.patch('/:id/ready-for-collection', protect, async (req, res) => {
+  const pool = await PoolRequest.findById(req.params.id)
+  if (!pool) return res.status(404).json({ success: false, message: 'Pool not found' })
+
+  const isOrderer = pool.designated_orderer?.toString() === req.user._id.toString() || isPoolCreator(pool, req.user._id)
+  if (!isOrderer) return res.status(403).json({ success: false, message: 'Only the orderer can mark collection ready' })
+  if (pool.type === 'carpool') return res.status(400).json({ success: false, message: 'Carpools do not use item collection' })
+  if (pool.status !== 'ordered') return res.status(400).json({ success: false, message: 'Order must be placed first' })
+  if (pool.fulfilment?.ready_at) return res.json({ success: true, data: pool, message: 'Collection is already marked ready' })
+  if ((pool.fulfilment?.method || 'common_pickup') === 'common_pickup' && !req.body.pickup_location && !pool.fulfilment?.pickup_location?.address) {
+    return res.status(400).json({ success: false, message: 'Pickup location is required before marking items ready' })
+  }
+
+  pool.fulfilment = {
+    ...(pool.fulfilment || {}),
+    pickup_location: req.body.pickup_location || pool.fulfilment?.pickup_location,
+    landmark: req.body.landmark ?? pool.fulfilment?.landmark,
+    instructions: req.body.instructions ?? pool.fulfilment?.instructions,
+    available_from: req.body.available_from || pool.fulfilment?.available_from,
+    available_until: req.body.available_until || pool.fulfilment?.available_until,
+    ready_at: new Date()
+  }
+
+  pool.participants.forEach(p => {
+    if (p.status !== 'cancelled') {
+      p.collection_status = 'ready'
+      p.ready_for_collection_at = new Date()
+    }
+  })
+  await pool.save()
+
+  pool.participants.filter(p => p.status !== 'cancelled').forEach(async (p) => {
+    const notif = await Notification.create({
+      recipient: p.user,
+      type: 'pool',
+      title: 'Items ready for collection',
+      message: `"${pool.title}" is ready. Check pickup details on the pool page.`,
+      link: `/pools/${pool._id}`
+    })
+    notifyUser(p.user.toString(), 'pool:ready_for_collection', { notification: notif, poolId: pool._id })
+  })
+
+  res.json({ success: true, data: pool, message: 'Participants can now collect their items' })
+})
+
 // POST /api/v1/pools/:id/confirm-delivery
 router.post('/:id/confirm-delivery', protect, async (req, res) => {
   const pool = await PoolRequest.findById(req.params.id)
@@ -687,9 +921,26 @@ router.post('/:id/confirm-delivery', protect, async (req, res) => {
 
   const participant = pool.participants.find(p => p.user.toString() === req.user._id.toString() && p.status !== 'cancelled')
   if (!participant) return res.status(403).json({ success: false, message: 'You are not a participant' })
+  if ((pool.fulfilment?.method || 'common_pickup') === 'common_pickup' && !pool.fulfilment?.ready_at) {
+    return res.status(400).json({ success: false, message: 'Wait until the orderer marks items ready for collection' })
+  }
+  if (participant.delivery_confirmed) {
+    const active = pool.participants.filter(p => p.status !== 'cancelled')
+    return res.json({
+      success: true,
+      message: 'Delivery already confirmed.',
+      data: {
+        all_confirmed: active.every(p => p.delivery_confirmed),
+        confirmed_count: active.filter(p => p.delivery_confirmed).length,
+        total: active.length
+      }
+    })
+  }
 
   participant.delivery_confirmed = true
   participant.delivery_confirmed_at = new Date()
+  participant.collection_status = 'collected'
+  participant.collected_at = new Date()
 
   if (pool.order_proof && !pool.order_proof.verified_by.map(v => v.toString()).includes(req.user._id.toString())) {
     pool.order_proof.verified_by.push(req.user._id)
@@ -730,9 +981,17 @@ router.post('/:id/submit-utr', protect, async (req, res) => {
   const participant = pool.participants.find(p => p.user.toString() === req.user._id.toString() && p.status !== 'cancelled')
   if (!participant) return res.status(403).json({ success: false, message: 'You are not a participant' })
   if (!participant.delivery_confirmed) return res.status(400).json({ success: false, message: 'Confirm delivery before submitting payment' })
+  if (participant.payment_status === 'paid') return res.json({ success: true, message: 'Payment already confirmed' })
+  if (participant.payment_status === 'utr_submitted') return res.json({ success: true, message: 'UTR already submitted' })
 
   const { utr_number } = req.body
-  if (!utr_number) return res.status(400).json({ success: false, message: 'UTR number is required' })
+  if (!isValidUtr(utr_number)) return res.status(400).json({ success: false, message: 'Enter a valid UTR number' })
+  const duplicateUtr = pool.participants.some(p =>
+    p.user.toString() !== req.user._id.toString() &&
+    p.utr_number &&
+    p.utr_number.toLowerCase() === utr_number.toLowerCase()
+  )
+  if (duplicateUtr) return res.status(400).json({ success: false, message: 'This UTR has already been submitted in this pool' })
 
   participant.utr_number = utr_number
   participant.utr_submitted_at = new Date()
@@ -762,6 +1021,10 @@ router.patch('/:id/confirm-payment/:participantUserId', protect, async (req, res
 
   const participant = pool.participants.find(p => p.user.toString() === req.params.participantUserId && p.status !== 'cancelled')
   if (!participant) return res.status(404).json({ success: false, message: 'Participant not found' })
+  if (participant.payment_status === 'paid') return res.json({ success: true, message: 'Payment already confirmed' })
+  if (participant.payment_status !== 'utr_submitted') {
+    return res.status(400).json({ success: false, message: 'Participant must submit a UTR first' })
+  }
 
   participant.payment_confirmed_by_orderer = true
   participant.payment_confirmed_at = new Date()
@@ -844,6 +1107,9 @@ router.post('/:id/razorpay/create-order', protect, async (req, res) => {
     p => p.user.toString() === req.user._id.toString() && p.status !== 'cancelled'
   )
   if (!participant) return res.status(403).json({ success: false, message: 'You are not a participant' })
+  if (!participant.delivery_confirmed) {
+    return res.status(400).json({ success: false, message: 'Confirm delivery or collection before paying' })
+  }
 
   if (participant.payment_status === 'paid') {
     return res.status(400).json({ success: false, message: 'Payment already completed' })
@@ -860,11 +1126,6 @@ router.post('/:id/razorpay/create-order', protect, async (req, res) => {
     const items = await PoolItem.find({ pool: pool._id, added_by: req.user._id })
     const total = items.reduce((sum, item) => sum + (item.estimated_price || 0) * item.quantity, 0)
     amountPaise = Math.round(total * 100)
-  }
-
-  // Allow custom amount override (e.g. if orderer set final amounts)
-  if (req.body.amount_paise) {
-    amountPaise = Number(req.body.amount_paise)
   }
 
   if (amountPaise < 100) {
@@ -929,6 +1190,13 @@ router.post('/:id/razorpay/verify-payment', protect, async (req, res) => {
     p => p.user.toString() === req.user._id.toString() && p.status !== 'cancelled'
   )
   if (!participant) return res.status(403).json({ success: false, message: 'Participant not found' })
+  if (!participant.delivery_confirmed) {
+    return res.status(400).json({ success: false, message: 'Confirm delivery or collection before paying' })
+  }
+  if (participant.payment_status === 'paid') return res.json({ success: true, message: 'Payment already verified' })
+  if (participant.razorpay_order_id !== razorpay_order_id) {
+    return res.status(400).json({ success: false, message: 'Payment order does not match this participant' })
+  }
 
   participant.payment_status = 'paid'
   participant.razorpay_payment_id = razorpay_payment_id
